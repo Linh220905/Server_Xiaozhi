@@ -202,27 +202,48 @@ class TTSService:
             logger.warning("ffmpeg not found, cannot stream audio url")
             return
 
-        cmd = [
-            ffmpeg,
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-reconnect",
-            "1",
-            "-reconnect_streamed",
-            "1",
-            "-reconnect_delay_max",
-            "3",
-            "-i",
-            url,
-            "-f",
-            "s16le",
-            "-ac",
-            "1",
-            "-ar",
-            str(self._target_rate),
-            "pipe:1",
-        ]
+        # For remote streams (http/https/rtsp) we can use reconnect options; local files
+        # or simple URLs may not support those options on some ffmpeg builds.
+        is_remote = str(url).lower().startswith(("http://", "https://", "rtsp://", "ftp://"))
+        if is_remote:
+            cmd = [
+                ffmpeg,
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-reconnect",
+                "1",
+                "-reconnect_streamed",
+                "1",
+                "-reconnect_delay_max",
+                "3",
+                "-i",
+                url,
+                "-f",
+                "s16le",
+                "-ac",
+                "1",
+                "-ar",
+                str(self._target_rate),
+                "pipe:1",
+            ]
+        else:
+            # Local file: simpler ffmpeg invocation without reconnect flags.
+            cmd = [
+                ffmpeg,
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-i",
+                url,
+                "-f",
+                "s16le",
+                "-ac",
+                "1",
+                "-ar",
+                str(self._target_rate),
+                "pipe:1",
+            ]
 
         process = await asyncio.create_subprocess_exec(
             *cmd,

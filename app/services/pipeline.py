@@ -99,6 +99,36 @@ class ConversationPipeline:
                 if not is_aborted():
                     await on_tts_stop()
                 return (user_text, "")
+            if fast_intent.intent == "alarm":
+                logger.info("Fast alarm intent detected: %s", fast_intent.alarm_time)
+                await on_tts_start()
+                if not self._mcp_tools:
+                    await on_tts_sentence("MCP tool chưa sẵn sàng để đặt báo thức.")
+                    if not is_aborted():
+                        await on_tts_stop()
+                    return (user_text, "")
+
+                # Call MCP set_alarm
+                try:
+                    args = {"time": fast_intent.alarm_time or "", "message": fast_intent.alarm_message or "Báo thức"}
+                    tool_result = await self._mcp_tools.call_tool("set_alarm", args)
+                    if tool_result.ok:
+                        await on_tts_sentence(f"Đã đặt báo thức vào lúc {fast_intent.alarm_time}.")
+                    else:
+                        # try to extract error text
+                        err_text = "không thể đặt báo thức"
+                        for it in tool_result.content:
+                            if isinstance(it, dict) and it.get("type") == "text":
+                                err_text = it.get("text")
+                                break
+                        await on_tts_sentence(f"Lỗi: {err_text}")
+                except Exception as e:
+                    logger.error("Alarm tool call failed: %s", e, exc_info=True)
+                    await on_tts_sentence("Lỗi khi gọi tool đặt báo thức")
+
+                if not is_aborted():
+                    await on_tts_stop()
+                return (user_text, "")
 
         # -- Buoc 2: LLM → tach cau → TTS (pre-fetch queue) --
         await on_tts_start()

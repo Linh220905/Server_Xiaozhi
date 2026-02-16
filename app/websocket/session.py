@@ -9,6 +9,7 @@ import uuid
 import struct
 import math
 import logging
+from datetime import datetime
 
 from app.config import AppConfig
 from app.audio.opus_codec import OpusDecoder
@@ -52,6 +53,8 @@ class Session:
         # State
         self.chat_history: list[dict] = []
         self.is_speaking = False
+        self.is_idling = False
+        self.last_idle_at: datetime | None = None
         self.aborted = False
 
         self._max_history = config.max_chat_history

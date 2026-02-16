@@ -11,6 +11,9 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlencode
 from urllib.request import urlopen
+import os
+import uuid
+from datetime import datetime, date, time, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +56,23 @@ class MCPToolRegistry:
                     },
                     "required": [],
                 },
-            }
+            },
+            {
+                "name": "set_alarm",
+                "description": "Đặt báo thức: cung cấp `time` (ISO datetime hoặc HH:MM) và `message`.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "time": {
+                            "type": "string",
+                            "description": "Thời gian báo thức. ISO datetime (ví dụ 2026-02-18T07:30:00) hoặc giờ phút 'HH:MM' (ví dụ '07:30').",
+                        },
+                        "message": {"type": "string", "description": "Nội dung thông báo"},
+                        "id": {"type": "string", "description": "ID tùy chọn cho báo thức"},
+                    },
+                    "required": ["time"],
+                },
+            },
         ]
 
     async def call_tool(self, name: str, arguments: dict[str, Any] | None) -> MCPToolResult:
@@ -62,11 +81,81 @@ class MCPToolRegistry:
 
         if name == "search_vietnamese_music":
             return self._tool_search_vietnamese_music(arguments)
+        if name == "set_alarm":
+            return self._tool_set_alarm(arguments)
 
         return MCPToolResult(
             ok=False,
             content=[{"type": "text", "text": f"Tool không tồn tại: {name}"}],
         )
+
+    def _tool_set_alarm(self, arguments: dict[str, Any]) -> MCPToolResult:
+        """Đặt báo thức: lưu vào file alarms.json gần file này.
+
+        Hỗ trợ `time` dạng ISO datetime hoặc `HH:MM` (sẽ áp dụng cho ngày hiện tại hoặc ngày tiếp theo nếu đã qua thời gian).
+        Trả về object alarm đã lưu.
+        """
+        time_raw = arguments.get("time")
+        if not time_raw:
+            return MCPToolResult(ok=False, content=[{"type": "text", "text": "Thiếu tham số `time`"}])
+
+        message = str(arguments.get("message") or "Báo thức").strip()
+        alarm_id = str(arguments.get("id") or uuid.uuid4())
+
+        alarm_dt: datetime | None = None
+     
+        try:
+            alarm_dt = datetime.fromisoformat(str(time_raw))
+        except Exception:
+            try:
+                hhmm = str(time_raw).strip()
+                t = datetime.strptime(hhmm, "%H:%M").time()
+                today = date.today()
+                candidate = datetime.combine(today, t)
+                now = datetime.now()
+                if candidate <= now:
+                    candidate = candidate + timedelta(days=1)
+                alarm_dt = candidate
+            except Exception:
+                return MCPToolResult(ok=False, content=[{"type": "text", "text": "Không hiểu định dạng `time`. Dùng ISO hoặc 'HH:MM'"}])
+
+        ringtone = str(arguments.get("ringtone") or "").strip() or None
+
+        alarm = {
+            "id": alarm_id,
+            "time": alarm_dt.isoformat(),
+            "message": message,
+            "ringtone": ringtone,
+            "created_at": datetime.now().isoformat(),
+            "triggered": False,
+        }
+
+        # Persist to alarms.json next to this file
+        try:
+            base = os.path.dirname(__file__)
+            path = os.path.join(base, "alarms.json")
+            alarms: list[dict[str, Any]] = []
+            if os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        alarms = json.load(f)
+                except Exception:
+                    alarms = []
+
+            alarms.append(alarm)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(alarms, f, ensure_ascii=False, indent=2)
+
+            return MCPToolResult(
+                ok=True,
+                content=[
+                    {"type": "text", "text": f"Đã đặt báo thức: {alarm['time']} (id={alarm_id})"},
+                    {"type": "json", "json": {"alarm": alarm}},
+                ],
+            )
+        except Exception as e:
+            logger.error("Lỗi lưu alarm: %s", e, exc_info=True)
+            return MCPToolResult(ok=False, content=[{"type": "text", "text": f"Lỗi lưu báo thức: {e}"}])
 
     def _tool_search_vietnamese_music(self, arguments: dict[str, Any]) -> MCPToolResult:
         song_name = str(arguments.get("song_name", "")).strip()

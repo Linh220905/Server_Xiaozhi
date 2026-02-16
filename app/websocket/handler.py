@@ -19,6 +19,8 @@ from app.websocket.session import Session, create_session, remove_session
 
 logger = logging.getLogger(__name__)
 mcp_tools = MCPToolRegistry()
+_session_ws: dict[str, WebSocket] = {}
+_session_send_locks: dict[str, asyncio.Lock] = {}
 
 
 async def handle_client(ws: WebSocket) -> None:
@@ -30,6 +32,9 @@ async def handle_client(ws: WebSocket) -> None:
     proto_version = ws.headers.get("protocol-version", "1")
 
     session = create_session(config, device_id, client_id)
+    # Register websocket for this session so background tasks can push to it
+    _session_ws[session.session_id] = ws
+    _session_send_locks[session.session_id] = asyncio.Lock()
     logger.info(f"[{device_id}] Connected (protocol v{proto_version})")
 
     try:
@@ -65,6 +70,14 @@ async def handle_client(ws: WebSocket) -> None:
             logger.info(f"[{device_id}] Disconnected ({frames} frames, pipeline_already={'yes' if already else 'no'})")
 
         _pipeline_triggered.discard(session.session_id)
+
+        # Cleanup websocket mapping and session
+        try:
+            _session_ws.pop(session.session_id, None)
+            # remove send lock
+            _session_send_locks.pop(session.session_id, None)
+        except Exception:
+            pass
 
         remove_session(session.session_id)
 
@@ -135,8 +148,13 @@ def _on_binary(ws: WebSocket, session: Session, data: bytes, proto_version: int)
         asyncio.create_task(_run_pipeline(ws, session))
 
     elif not session._has_speech and count >= IDLE_TIMEOUT_FRAMES:
+        # If already idling, ignore repeated idle triggers
+        if session.is_idling:
+            return
+
         _pipeline_triggered.add(session.session_id)
-        logger.info(f"\033[93m[{session.device_id}] ⏰ Idle timeout ({count} frames, ~{count*0.06:.0f}s) → goodbye\033[0m")
+        logger.info(f"\033[93m[{session.device_id}] ⏰ Idle timeout ({count} frames, ~{count*0.06:.0f}s) → goodbye (enter idle)\033[0m")
+        # Enter idle state and play goodbye once (or send idle notification).
         asyncio.create_task(_goodbye_and_idle(ws, session))
 
 
@@ -156,6 +174,8 @@ def _extract_opus_payload(data: bytes, version: int) -> bytes | None:
 async def _goodbye_and_idle(ws: WebSocket, session: Session) -> None:
     """Gửi câu chào tạm biệt qua TTS rồi đưa client về trạng thái chờ."""
     goodbye_text = "Bạn ơi, lâu quá không thấy nói gì, tôi đi ngủ đây nhé, khi nào cần thì gọi lại nha!"
+    # mark idling to avoid retriggers
+    session.is_idling = True
     try:
         await _send_json(ws, session, {"type": "tts", "state": "start"})
         await _send_json(ws, session, {"type": "tts", "state": "sentence_start", "text": goodbye_text})
@@ -171,16 +191,20 @@ async def _goodbye_and_idle(ws: WebSocket, session: Session) -> None:
     except Exception as e:
         logger.error(f"[{session.device_id}] Goodbye error: {e}")
 
-    # Đóng WebSocket → ESP32 tự về standby/wake-word mode
+  
     try:
-        await ws.close()
-        logger.info(f"\033[93m[{session.device_id}] 👋 WebSocket closed → client back to idle\033[0m")
+        session.is_idling = True
+        await _send_json(ws, session, {"type": "idle", "message": "Server is idling (connection kept open)"})
+        logger.info(f"\033[93m[{session.device_id}] 💤 Connection left open in idle mode\033[0m")
     except Exception:
-        pass
+        
+        try:
+            await ws.close()
+            logger.info(f"\033[93m[{session.device_id}] 👋 WebSocket closed after goodbye (fallback)\033[0m")
+        except Exception:
+            logger.exception("Failed to close websocket after goodbye (fallback)")
 
-    # Cleanup
     session.reset_audio_buffer()
-    _pipeline_triggered.discard(session.session_id)
     _frame_counters.pop(session.session_id, None)
 
 
@@ -206,6 +230,7 @@ async def _handle_listen(ws: WebSocket, session: Session, msg: dict) -> None:
 
     if state in ("start", "detect"):
         session.reset_audio_buffer()
+        session.is_idling = False
         _frame_counters[session.session_id] = 0
         _pipeline_triggered.discard(session.session_id)
         logger.info(f"[{session.device_id}] Recording started (mode={mode})")

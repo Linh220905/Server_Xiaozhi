@@ -8,6 +8,7 @@ from fastapi import FastAPI, WebSocket
 from app.config import config
 from app.api.routes import router as api_router
 from app.websocket.handler import handle_client
+from app.mcp.alarm_scheduler import start_scheduler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,6 +34,11 @@ async def websocket_endpoint(ws: WebSocket):
 @app.on_event("startup")
 async def on_startup():
     logger.info("=" * 60)
+    # Start alarm scheduler
+    try:
+        await start_scheduler()
+    except Exception:
+        logger.exception("Failed to start alarm scheduler")
     logger.info("🚀 XiaoZhi Server started")
     logger.info(f"   WebSocket : ws://0.0.0.0:{config.server.port}/")
     logger.info(f"   REST API  : http://0.0.0.0:{config.server.port}/api/")

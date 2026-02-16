@@ -1,0 +1,98 @@
+[
+  {
+    "id": "45c7d1a3-398a-4858-906b-17677e500d68",
+    "time": "2026-02-17T08:00:00",
+    "message": "đạt lúc giờ",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:21:16.011956",
+    "triggered": false
+  },
+  {
+    "id": "2298343b-1a9e-4913-9f5b-7c9069964adf",
+    "time": "2026-02-17T00:30:00",
+    "message": "đạt lúc giờ phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:21:53.962927",
+    "triggered": true
+  },
+  {
+    "id": "73dcb25b-4ca0-49a9-b189-0fd614c8a29e",
+    "time": "2026-02-17T00:24:00",
+    "message": "đạt lúc giờ phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:22:19.140299",
+    "triggered": true
+  },
+  {
+    "id": "4a4ae237-7dd6-4799-8a55-f73e233da99f",
+    "time": "2026-02-17T00:26:00",
+    "message": "đạt lúc giờ phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:25:27.649137",
+    "triggered": true
+  },
+  {
+    "id": "b2b48881-9b7d-462e-9a68-a32dd79230c8",
+    "time": "2026-02-17T00:28:00",
+    "message": "đạt lúc 0h phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:27:30.444876",
+    "triggered": true
+  },
+  {
+    "id": "5c5ed822-e028-4212-a2b9-b5c82f5c0fc7",
+    "time": "2026-02-18T00:00:00",
+    "message": "đẹp lúc giờ bóng phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:41:11.302558",
+    "triggered": false
+  },
+  {
+    "id": "e5ae93a3-a685-4482-968e-bcca85537551",
+    "time": "2026-02-17T00:42:00",
+    "message": "đạt lúc giờ phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:41:22.072421",
+    "triggered": true
+  },
+  {
+    "id": "cd4d230f-0119-4aca-9891-16e058f233ec",
+    "time": "2026-02-17T00:44:00",
+    "message": "đạt lúc giờ phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:43:32.915758",
+    "triggered": true
+  },
+  {
+    "id": "b72b07d1-3b4b-4e53-8c2c-f3ff36eb6627",
+    "time": "2026-02-17T00:48:00",
+    "message": "đạt lúc 0h phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:47:08.312927",
+    "triggered": true
+  },
+  {
+    "id": "529f93f0-649a-47d3-9817-b9d7a63d1a4c",
+    "time": "2026-02-17T00:50:00",
+    "message": "đạt thật lúc giờ phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:49:42.429579",
+    "triggered": true
+  },
+  {
+    "id": "ddafa076-93f4-430f-a14d-9b119fd7efda",
+    "time": "2026-02-17T00:53:00",
+    "message": "đạt thật lúc giờ phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:52:22.600992",
+    "triggered": true
+  },
+  {
+    "id": "49a9e7af-9ff2-4a58-aed6-31d3f9c9c442",
+    "time": "2026-02-17T00:57:00",
+    "message": "lúc giờ phút",
+    "ringtone": null,
+    "created_at": "2026-02-17T00:56:53.742740",
+    "triggered": true
+  }
+]
