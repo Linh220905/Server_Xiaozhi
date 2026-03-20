@@ -63,6 +63,10 @@ class Session:
         self._silent_frames = 0  # Số frames im lặng liên tiếp
         self._has_speech = False  # Đã xác nhận giọng nói chưa
         self._speech_frames = 0  # Số frames có năng lượng cao (đếm để xác nhận)
+        self._noise_floor_rms = 0.0  # Nền nhiễu RMS ước lượng (adaptive)
+        self._last_speech_threshold = 0.0
+        self._last_silence_threshold = 0.0
+        self._last_rms_delta = 0.0
 
     @property
     def buffer_size(self) -> int:
@@ -70,11 +74,19 @@ class Session:
         return len(self._pcm_buffer)
 
     def reset_audio_buffer(self) -> None:
-        """Xóa buffer audio, chuẩn bị nhận recording mới."""
+        """Xóa buffer audio, chuẩn bị nhận recording mới.
+        
+        GIỮ LẠI noise_floor_rms để tránh recalibration sai khi user
+        đang nói → noise floor nhảy lên cao → speech không detect được.
+        """
         self._pcm_buffer = bytearray()
         self._silent_frames = 0
         self._has_speech = False
         self._speech_frames = 0
+        # KHÔNG reset _noise_floor_rms — giữ lại từ lượt trước
+        self._last_speech_threshold = 0.0
+        self._last_silence_threshold = 0.0
+        self._last_rms_delta = 0.0
         self.aborted = False
 
     def append_audio(self, opus_data: bytes) -> bytes | None:
@@ -92,8 +104,8 @@ class Session:
     def check_vad(
         self,
         pcm: bytes,
-        speech_threshold: int = 2500,
-        silence_threshold: int = 2000,
+        speech_threshold: int = 500,
+        silence_threshold: int = 260,
         speech_frames_needed: int = 8,
         silence_frames_needed: int = 10,
     ) -> str:
@@ -111,17 +123,48 @@ class Session:
         """
         rms = self._calc_rms(pcm)
 
-        if rms > speech_threshold:
+        # Ngưỡng tạm để quyết định có cập nhật noise floor hay không
+        pre_speech_gate = self._noise_floor_rms * 1.18 + 120.0 if self._noise_floor_rms > 0 else float(speech_threshold)
+
+        # Adaptive noise floor: theo dõi nền nhiễu nhưng không đuổi theo frame nghi là speech.
+        if self._noise_floor_rms <= 0:
+            self._noise_floor_rms = rms
+        else:
+            if not self._has_speech and rms > pre_speech_gate:
+                # Đang nghi có speech: freeze noise floor để không tự nâng ngưỡng.
+                pass
+            else:
+                # Hạ xuống nhanh hơn, tăng lên chậm hơn để bám nhiễu ổn định.
+                alpha = 0.06 if rms < self._noise_floor_rms else 0.015
+                capped = min(rms, self._noise_floor_rms * 1.08)
+                self._noise_floor_rms = (1.0 - alpha) * self._noise_floor_rms + alpha * capped
+
+        dynamic_speech_threshold = max(float(speech_threshold), self._noise_floor_rms * 1.18 + 120.0)
+        dynamic_silence_threshold = max(float(silence_threshold), self._noise_floor_rms * 1.08 + 60.0)
+        rms_delta = rms - self._noise_floor_rms
+        self._last_speech_threshold = dynamic_speech_threshold
+        self._last_silence_threshold = dynamic_silence_threshold
+        self._last_rms_delta = rms_delta
+
+        if rms > dynamic_speech_threshold and rms_delta > 120:
             self._silent_frames = 0
             self._speech_frames += 1
             if self._speech_frames >= speech_frames_needed:
                 self._has_speech = True
             return 'speech'
-        elif rms > silence_threshold:
+        elif rms > dynamic_silence_threshold:
             self._silent_frames = 0
+            # Chưa đủ mạnh để xác nhận speech: giảm dần bộ đếm để yêu cầu
+            # các frame "speech mạnh" phải gần như liên tiếp, tránh cộng dồn
+            # do nhiễu rời rạc.
+            if not self._has_speech and self._speech_frames > 0:
+                self._speech_frames -= 1
             return 'speech' if self._has_speech else 'silence'
         else:
             self._silent_frames += 1
+            if not self._has_speech:
+                # Nếu vẫn chưa vào trạng thái speech thì reset hẳn bộ đếm.
+                self._speech_frames = 0
             if self._has_speech and self._silent_frames >= silence_frames_needed:
                 return 'silence_after_speech'
             return 'silence'
@@ -132,14 +175,15 @@ class Session:
 
     @staticmethod
     def _calc_rms(pcm: bytes) -> float:
-        """Tính RMS (Root Mean Square) của PCM int16."""
+        """Tính AC RMS (trừ DC offset) của PCM int16."""
         if len(pcm) < 2:
             return 0.0
         n_samples = len(pcm) // 2
         samples = struct.unpack(f'<{n_samples}h', pcm[:n_samples * 2])
         if not samples:
             return 0.0
-        sum_sq = sum(s * s for s in samples)
+        mean = sum(samples) / n_samples
+        sum_sq = sum((s - mean) * (s - mean) for s in samples)
         return math.sqrt(sum_sq / n_samples)
 
     def take_audio_buffer(self) -> bytes:

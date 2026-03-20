@@ -363,8 +363,28 @@ class ConversationPipeline:
         if not self._mcp_tools or is_aborted():
             return
 
+        requested_song = str(music_payload.get("song_name") or "bài nhạc").strip()
         tracks = self._extract_tracks(music_payload)
         if not tracks:
+            await on_tts_sentence("Mình chưa tìm thấy bản nhạc phù hợp, để mình thử nguồn khác.")
+            await self._send_frames_with_pacing(
+                self._tts.synthesize("Mình chưa tìm thấy bản nhạc phù hợp, để mình thử nguồn khác."),
+                on_tts_audio=on_tts_audio,
+                is_aborted=is_aborted,
+            )
+
+            streamed = await self._send_frames_with_pacing(
+                self._tts.stream_full_song_by_query(requested_song),
+                on_tts_audio=on_tts_audio,
+                is_aborted=is_aborted,
+            )
+            if streamed == 0:
+                await on_tts_sentence("Xin lỗi, hiện tại mình chưa phát được bài này. Bạn thử nói rõ tên bài hoặc ca sĩ nhé.")
+                await self._send_frames_with_pacing(
+                    self._tts.synthesize("Xin lỗi, hiện tại mình chưa phát được bài này. Bạn thử nói rõ tên bài hoặc ca sĩ nhé."),
+                    on_tts_audio=on_tts_audio,
+                    is_aborted=is_aborted,
+                )
             return
 
         first = tracks[0]
@@ -383,9 +403,6 @@ class ConversationPipeline:
             is_aborted=is_aborted,
         )
 
-        if not preview_url:
-            return
-
         # Đợi ngắn để tránh đè frame cuối của câu xác nhận.
         await asyncio.sleep(self._tts.frame_duration_s)
 
@@ -398,8 +415,16 @@ class ConversationPipeline:
 
         # Fallback: nếu không stream được full song thì phát preview 30s.
         if streamed == 0 and preview_url:
-            await self._send_frames_with_pacing(
+            streamed = await self._send_frames_with_pacing(
                 self._tts.stream_audio_url(preview_url),
+                on_tts_audio=on_tts_audio,
+                is_aborted=is_aborted,
+            )
+
+        if streamed == 0:
+            await on_tts_sentence("Xin lỗi, mình chưa phát được bài này lúc này.")
+            await self._send_frames_with_pacing(
+                self._tts.synthesize("Xin lỗi, mình chưa phát được bài này lúc này."),
                 on_tts_audio=on_tts_audio,
                 is_aborted=is_aborted,
             )

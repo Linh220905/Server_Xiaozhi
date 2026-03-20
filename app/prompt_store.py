@@ -3,18 +3,18 @@
 Place all system/user prompts here so they are easy to edit.
 """
 
-# Danh sách emotion hợp lệ (khớp với GIF animation trên ESP32)
+
 VALID_EMOTIONS = [
-    "neutral",   # bình thường
-    "happy",     # vui vẻ
-    "angry",     # tức giận
-    "sad",       # buồn
-    "excited",   # phấn khích
-    "confused",  # bối rối
-    "sleepy",    # buồn ngủ
-    "blink",     # chớp mắt (ngạc nhiên nhẹ)
-    "laughing",  # cười lớn
-    "loving",    # yêu thương
+    "neutral",  
+    "happy",     
+    "angry",     
+    "sad",       
+    "excited",   
+    "confused",  
+    "sleepy",    
+    "blink",     
+    "laughing",   
+    "loving",   
 ]
 
 SYSTEM_PROMPT = (

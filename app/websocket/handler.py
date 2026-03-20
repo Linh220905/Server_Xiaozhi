@@ -7,6 +7,7 @@ Mỗi client kết nối = 1 instance handle_client().
 
 import json
 import struct
+import time
 import asyncio
 import logging
 
@@ -58,6 +59,11 @@ async def handle_client(ws: WebSocket) -> None:
 
         # Nếu disconnect mà buffer còn data VÀ chưa trigger pipeline → trigger
         frames = _frame_counters.pop(session.session_id, 0)
+        _low_rms_counters.pop(session.session_id, None)
+        _high_rms_counters.pop(session.session_id, None)
+        _post_high_silence_counters.pop(session.session_id, None)
+        _high_rms_armed.discard(session.session_id)
+        _pipeline_finished_at.pop(session.session_id, None)
         already = session.session_id in _pipeline_triggered
         if session.buffer_size > 3200 and not already:
             _pipeline_triggered.add(session.session_id)
@@ -110,13 +116,56 @@ async def _on_text(ws: WebSocket, session: Session, raw: str) -> None:
 
 
 _frame_counters: dict[str, int] = {}
+_low_rms_counters: dict[str, int] = {}
+_high_rms_counters: dict[str, int] = {}
+_post_high_silence_counters: dict[str, int] = {}
+_high_rms_armed: set[str] = set()
 _pipeline_triggered: set[str] = set()  # Chặn trigger pipeline nhiều lần
+_pipeline_finished_at: dict[str, float] = {}  # Timestamp khi pipeline kết thúc
 
-IDLE_TIMEOUT_FRAMES = 167  
+IDLE_TIMEOUT_FRAMES = 1000  
+LOW_RMS_THRESHOLD_MIN = 700
+LOW_RMS_FRAMES = 90
+HIGH_RMS_THRESHOLD = 4000
+HIGH_RMS_FRAMES = 5
+POST_HIGH_SILENCE_THRESHOLD = 2000
+POST_HIGH_SILENCE_FRAMES = 8
+COOLDOWN_SECONDS = 1.5  # Bỏ qua audio residual sau khi pipeline xong
+MAX_UTTERANCE_FRAMES = 260  # ~15.6s @ 60ms/frame
+
+
+def _update_consecutive_counter(
+    counters: dict[str, int],
+    session_id: str,
+    *,
+    enabled: bool,
+    matched: bool,
+) -> int:
+    """Cập nhật bộ đếm frame liên tiếp theo điều kiện (clean helper)."""
+    if enabled and matched:
+        value = counters.get(session_id, 0) + 1
+    else:
+        value = 0
+    counters[session_id] = value
+    return value
 
 
 def _on_binary(ws: WebSocket, session: Session, data: bytes, proto_version: int) -> None:
     """Parse binary audio frame, thêm vào buffer, check VAD."""
+    # Đang chạy pipeline thì bỏ qua frame mới để tránh tích lũy buffer vô hạn.
+    if session.session_id in _pipeline_triggered:
+        return
+
+    now = time.monotonic()
+    finished_at = _pipeline_finished_at.get(session.session_id)
+    if finished_at is not None and (now - finished_at) < COOLDOWN_SECONDS:
+        return
+
+    # Khi đã vào idle hoặc server đang phát TTS thì bỏ qua audio.
+    # Tránh thu lại tiếng loa của chính thiết bị và trigger STT lặp.
+    if session.is_idling or session.is_speaking:
+        return
+
     opus_data = _extract_opus_payload(data, proto_version)
     if not opus_data:
         return
@@ -129,21 +178,81 @@ def _on_binary(ws: WebSocket, session: Session, data: bytes, proto_version: int)
     _frame_counters[session.session_id] = count
 
     rms = session._calc_rms(pcm)
+    high_rms_count = _update_consecutive_counter(
+        _high_rms_counters,
+        session.session_id,
+        enabled=True,
+        matched=rms > HIGH_RMS_THRESHOLD,
+    )
+
+    high_rms_armed = session.session_id in _high_rms_armed
+    if (not high_rms_armed) and high_rms_count >= HIGH_RMS_FRAMES:
+        _high_rms_armed.add(session.session_id)
+        high_rms_armed = True
+        _post_high_silence_counters[session.session_id] = 0
+        logger.info(
+            f"[{session.device_id}] High-RMS armed: rms>{HIGH_RMS_THRESHOLD} for {high_rms_count} frames"
+        )
+
+    post_high_silence_count = _update_consecutive_counter(
+        _post_high_silence_counters,
+        session.session_id,
+        enabled=high_rms_armed,
+        matched=rms < POST_HIGH_SILENCE_THRESHOLD,
+    )
+
+    # Cập nhật VAD trước để lấy trạng thái mới nhất (_has_speech/_silent_frames/thresholds)
+    vad_state = session.check_vad(pcm)
+
+    # Low-RMS fallback chỉ hoạt động SAU KHI đã có speech.
+    # Dùng ngưỡng động theo noise floor để tránh timeout giả khi phòng yên tĩnh.
+    dynamic_low_rms_threshold = max(LOW_RMS_THRESHOLD_MIN, int(session._last_silence_threshold + 80))
+    low_rms_count = _update_consecutive_counter(
+        _low_rms_counters,
+        session.session_id,
+        enabled=session._has_speech,
+        matched=rms < dynamic_low_rms_threshold,
+    )
+
     if count <= 10 or count % 5 == 0:
         logger.info(
             f"[{session.device_id}] #{count} rms={rms:.0f} "
+            f"noise_floor={session._noise_floor_rms:.0f} "
+            f"delta={session._last_rms_delta:.0f} "
+            f"th_s={session._last_speech_threshold:.0f} th_z={session._last_silence_threshold:.0f} "
             f"silent_frames={session._silent_frames} has_speech={session._has_speech} "
+            f"high_rms={high_rms_count} "
+            f"high_armed={high_rms_armed} post_sil={post_high_silence_count} "
             f"({len(opus_data)}B opus, {session.buffer_size}B buf)"
         )
 
+    if high_rms_armed and post_high_silence_count >= POST_HIGH_SILENCE_FRAMES:
+        _pipeline_triggered.add(session.session_id)
+        _high_rms_armed.discard(session.session_id)
+        _post_high_silence_counters[session.session_id] = 0
+        logger.info(
+            f"[{session.device_id}] High-RMS+Silence trigger: rms>{HIGH_RMS_THRESHOLD}({HIGH_RMS_FRAMES}f) rồi rms<{POST_HIGH_SILENCE_THRESHOLD}({post_high_silence_count}f) -> triggering STT"
+        )
+        asyncio.create_task(_run_pipeline(ws, session))
+        return
 
-    if session.session_id in _pipeline_triggered:
-        return  
+    # Trigger STT fallback khi đã có speech và đã im lặng đủ lâu.
+    if session._has_speech and session._silent_frames >= 8 and low_rms_count >= LOW_RMS_FRAMES:
+        _pipeline_triggered.add(session.session_id)
+        logger.info(
+            f"[{session.device_id}] Low-RMS timeout: rms<{dynamic_low_rms_threshold} for {low_rms_count} frames -> triggering STT"
+        )
+        asyncio.create_task(_run_pipeline(ws, session))
+        return
 
-    vad_state = session.check_vad(pcm)
     if vad_state == 'silence_after_speech':
         _pipeline_triggered.add(session.session_id)
         logger.info(f"[{session.device_id}] VAD: silence after speech -- {count} frames, buffer={session.buffer_size} bytes -> triggering STT")
+        asyncio.create_task(_run_pipeline(ws, session))
+
+    elif session._has_speech and count >= MAX_UTTERANCE_FRAMES:
+        _pipeline_triggered.add(session.session_id)
+        logger.info(f"[{session.device_id}] Max utterance length ({count} frames) -> triggering STT")
         asyncio.create_task(_run_pipeline(ws, session))
 
     elif not session._has_speech and count >= IDLE_TIMEOUT_FRAMES:
@@ -171,7 +280,7 @@ def _extract_opus_payload(data: bytes, version: int) -> bytes | None:
 
 
 async def _goodbye_and_idle(ws: WebSocket, session: Session) -> None:
-    """Gửi câu chào tạm biệt qua TTS rồi đưa client về trạng thái chờ."""
+    """Gửi câu chào tạm biệt qua TTS rồi đóng kênh để client về trạng thái chờ."""
     goodbye_text = "Bạn ơi, lâu quá không thấy nói gì, tôi đi ngủ đây nhé, khi nào cần thì gọi lại nha!"
     # mark idling to avoid retriggers
     session.is_idling = True
@@ -190,21 +299,20 @@ async def _goodbye_and_idle(ws: WebSocket, session: Session) -> None:
     except Exception as e:
         logger.error(f"[{session.device_id}] Goodbye error: {e}")
 
-  
-    try:
-        session.is_idling = True
-        await _send_json(ws, session, {"type": "idle", "message": "Server is idling (connection kept open)"})
-        logger.info(f"\033[93m[{session.device_id}] 💤 Connection left open in idle mode\033[0m")
-    except Exception:
-        
-        try:
-            await ws.close()
-            logger.info(f"\033[93m[{session.device_id}] 👋 WebSocket closed after goodbye (fallback)\033[0m")
-        except Exception:
-            logger.exception("Failed to close websocket after goodbye (fallback)")
-
     session.reset_audio_buffer()
     _frame_counters.pop(session.session_id, None)
+    _low_rms_counters.pop(session.session_id, None)
+    _high_rms_counters.pop(session.session_id, None)
+    _post_high_silence_counters.pop(session.session_id, None)
+    _high_rms_armed.discard(session.session_id)
+
+    # Với ESP32 auto mode, sau tts stop thiết bị sẽ tự quay lại listening.
+    # Đóng websocket để thiết bị chuyển hẳn về idle, tránh lặp lại timeout-goodbye.
+    try:
+        await ws.close()
+        logger.info(f"\033[93m[{session.device_id}] 👋 WebSocket closed after idle-timeout goodbye\033[0m")
+    except Exception:
+        logger.exception("Failed to close websocket after idle-timeout goodbye")
 
 
 async def _handle_hello(ws: WebSocket, session: Session, msg: dict) -> None:
@@ -230,7 +338,12 @@ async def _handle_listen(ws: WebSocket, session: Session, msg: dict) -> None:
     if state in ("start", "detect"):
         session.reset_audio_buffer()
         session.is_idling = False
+        _pipeline_finished_at.pop(session.session_id, None)
         _frame_counters[session.session_id] = 0
+        _low_rms_counters[session.session_id] = 0
+        _high_rms_counters[session.session_id] = 0
+        _post_high_silence_counters[session.session_id] = 0
+        _high_rms_armed.discard(session.session_id)
         _pipeline_triggered.discard(session.session_id)
         logger.info(f"[{session.device_id}] Recording started (mode={mode})")
 
@@ -324,6 +437,13 @@ async def _run_pipeline(ws: WebSocket, session: Session) -> None:
 
     if len(pcm_data) < 3200:
         logger.info(f"[{session.device_id}] Audio quá ngắn ({duration_s:.1f}s), bỏ qua")
+        _pipeline_triggered.discard(session.session_id)
+        _frame_counters[session.session_id] = 0
+        _low_rms_counters[session.session_id] = 0
+        _high_rms_counters[session.session_id] = 0
+        _post_high_silence_counters[session.session_id] = 0
+        _high_rms_armed.discard(session.session_id)
+        session.reset_audio_buffer()
         return
 
     session.is_speaking = True
@@ -415,8 +535,19 @@ async def _run_pipeline(ws: WebSocket, session: Session) -> None:
         logger.error(f"[{session.device_id}] Pipeline error: {e}", exc_info=True)
     finally:
         session.is_speaking = False
-        # Reset emotion to neutral when done speaking
-        await safe_send_json({"type": "llm", "emotion": "neutral"})
+        _pipeline_finished_at[session.session_id] = time.monotonic()
+        # Reset emotion to blink (nháy mắt) when done speaking
+        await safe_send_json({"type": "llm", "emotion": "blink"})
+
+        # ── CRITICAL FIX: cho phép nhận audio tiếp sau khi pipeline xong ──
+        _pipeline_triggered.discard(session.session_id)
+        _frame_counters[session.session_id] = 0
+        _low_rms_counters[session.session_id] = 0
+        _high_rms_counters[session.session_id] = 0
+        _post_high_silence_counters[session.session_id] = 0
+        _high_rms_armed.discard(session.session_id)
+        session.reset_audio_buffer()
+        logger.info(f"[{session.device_id}] Pipeline finished → reset state, ready for next utterance")
 
 
 async def _send_json(ws: WebSocket, session: Session, data: dict) -> None:
