@@ -940,12 +940,24 @@
   }
 
   // ── Edit Robot ──
-  function openEdit(i) {
+  async function openEdit(i) {
     const r = robots[i];
     document.getElementById('edit-id').value = r.mac_address;
     document.getElementById('edit-name').value = r.name || '';
     document.getElementById('edit-description').value = '';
-    document.getElementById('edit-system-prompt').value = '';
+    // Fetch robot config from API
+    try {
+      const res = await apiFetch(API_ROBOTS + encodeURIComponent(r.mac_address) + '/config');
+      if (res.ok) {
+        const config = await res.json();
+        document.getElementById('edit-system-prompt').value = config.system_prompt || '';
+        // Optionally set voice style/language if you want to support them
+      } else {
+        document.getElementById('edit-system-prompt').value = '';
+      }
+    } catch (e) {
+      document.getElementById('edit-system-prompt').value = '';
+    }
     document.getElementById('edit-voice-style').value = 'default';
     document.getElementById('edit-language').value = 'vi';
     document.getElementById('modal-title').textContent = 'Edit — ' + (r.name || r.robot_id);
@@ -959,18 +971,36 @@
     e.preventDefault();
     const mac = document.getElementById('edit-id').value;
     const name = document.getElementById('edit-name').value.trim();
+    const systemPrompt = document.getElementById('edit-system-prompt').value;
+    // Update robot name (basic info)
     try {
       const res = await apiFetch(API_ROBOTS + encodeURIComponent(mac), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name || null }),
       });
-      if (res.ok) {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast('✕', err.detail || 'Update failed', 'error');
+        return;
+      }
+    } catch (err) {
+      if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error');
+      return;
+    }
+    // Update robot config (system prompt)
+    try {
+      const res2 = await apiFetch(API_ROBOTS + encodeURIComponent(mac) + '/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system_prompt: systemPrompt }),
+      });
+      if (res2.ok) {
         toast('✓', 'Changes saved.', 'success');
         closeModal();
         await loadRobots();
       } else {
-        const err = await res.json().catch(() => ({}));
+        const err = await res2.json().catch(() => ({}));
         toast('✕', err.detail || 'Update failed', 'error');
       }
     } catch (err) {
