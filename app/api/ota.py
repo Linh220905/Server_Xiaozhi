@@ -41,6 +41,21 @@ async def ota_bootstrap(request: Request) -> dict:
     ws_url = f"ws://{host}"
     now_ms = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 
+    # Lấy firmware mới nhất trong static/firmware
+    import os
+    firmware_dir = os.path.join(os.path.dirname(__file__), '../../static/firmware')
+    firmware_dir = os.path.abspath(firmware_dir)
+    firmware_file = None
+    firmware_version = "1.0.0"
+    for f in sorted(os.listdir(firmware_dir), reverse=True):
+        if f.endswith('.bin'):
+            firmware_file = f
+            try:
+                firmware_version = f.split('_')[0]
+            except Exception:
+                firmware_version = "1.0.0"
+            break
+    firmware_url = f"http://{host}/static/firmware/{firmware_file}" if firmware_file else ""
     response: dict = {
         "websocket": {
             "url": ws_url,
@@ -52,8 +67,8 @@ async def ota_bootstrap(request: Request) -> dict:
             "timezone_offset": 420,
         },
         "firmware": {
-            "version": "1.0.0",
-            "url": "",
+            "version": firmware_version,
+            "url": firmware_url,
             "force": 0,
         },
     }

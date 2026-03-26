@@ -51,10 +51,10 @@ async def login(
 
     access_token_expires = timedelta(minutes=30)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.username, "role": getattr(user, "role", "user")}, expires_delta=access_token_expires
     )
 
-    session_token = create_session_token(email=user.username, role="admin")
+    session_token = create_session_token(email=user.username, role=getattr(user, "role", "user"))
     response = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
     response.set_cookie(
         key="nexus_session",

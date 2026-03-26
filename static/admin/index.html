@@ -474,6 +474,36 @@
     <div class="nav-item admin-only" data-tab="add-robot" onclick="switchTab('add-robot',this)">
       <span class="nav-icon">＋</span> Add Robot
     </div>
+    <div class="nav-item admin-only" data-tab="firmware" onclick="switchTab('firmware',this)">
+      <span class="nav-icon">⬆️</span> Firmware
+    </div>
+        <!-- Firmware Upload (admin only) -->
+        <div class="tab-view" id="tab-firmware">
+          <div class="topbar">
+            <div>
+              <div class="page-title">Firmware Upload</div>
+              <div class="page-sub">Upload .bin file để cập nhật OTA cho robot</div>
+            </div>
+          </div>
+          <div class="form-card" style="max-width:440px">
+            <form id="firmware-form">
+              <div class="field">
+                <label>Firmware File (.bin)</label>
+                <input type="file" id="firmware-file" accept=".bin" required />
+              </div>
+              <div class="field">
+                <label>Version</label>
+                <input type="text" id="firmware-version" placeholder="e.g. 1.0.0" required />
+              </div>
+              <div class="field">
+                <label>Note</label>
+                <textarea id="firmware-note" rows="2" placeholder="Ghi chú (tùy chọn)"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary btn-full" id="firmware-upload-btn">⬆️ Upload Firmware</button>
+            </form>
+            <div id="firmware-upload-result" style="margin-top:1.2rem; display:none;"></div>
+          </div>
+        </div>
     <div class="nav-item viewer-only" data-tab="claim-robot" onclick="switchTab('claim-robot',this)">
       <span class="nav-icon">🔑</span> Claim Robot
     </div>
@@ -1080,6 +1110,47 @@
     }
     btn.innerHTML = '🔑 Claim Robot';
     btn.disabled = false;
+  }
+
+  // Firmware upload handler
+  const firmwareForm = document.getElementById('firmware-form');
+  if (firmwareForm) {
+    firmwareForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const fileInput = document.getElementById('firmware-file');
+      const versionInput = document.getElementById('firmware-version');
+      const noteInput = document.getElementById('firmware-note');
+      const resultDiv = document.getElementById('firmware-upload-result');
+      const btn = document.getElementById('firmware-upload-btn');
+      if (!fileInput.files.length) return;
+      btn.innerHTML = '<span class="spinner"></span> Uploading...'; btn.disabled = true;
+      resultDiv.style.display = 'none';
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      formData.append('version', versionInput.value.trim());
+      formData.append('note', noteInput.value.trim());
+      try {
+        const res = await fetch('/api/OTA/upload', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          toast('✓', 'Upload thành công!', 'success');
+          resultDiv.innerHTML = '<div style="color:var(--green); font-size:.85rem;">✅ Đã upload: <a href="' + data.url + '" target="_blank">' + data.filename + '</a></div>';
+          resultDiv.style.display = 'block';
+          firmwareForm.reset();
+        } else {
+          toast('✕', data.detail || 'Upload thất bại', 'error');
+          resultDiv.innerHTML = '<div style="color:var(--red); font-size:.85rem;">❌ ' + (data.detail || 'Upload thất bại') + '</div>';
+          resultDiv.style.display = 'block';
+        }
+      } catch (err) {
+        toast('✕', 'Network error', 'error');
+      }
+      btn.innerHTML = '⬆️ Upload Firmware'; btn.disabled = false;
+    });
   }
 
   // Auto-refresh every 30 seconds

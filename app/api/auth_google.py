@@ -30,6 +30,7 @@ oauth.register(
 def create_session_token(email: str, role: str = "viewer") -> str:
     payload = {
         "email": email,
+        "sub": email,
         "role": role,
         "exp": datetime.now(timezone.utc) + timedelta(hours=24),
         "iat": datetime.now(timezone.utc),

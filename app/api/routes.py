@@ -8,6 +8,8 @@ from .robot_api import router as robot_router
 from .otp import router as otp_router
 from .ota_activate import router as ota_activate_router
 from .auth_google import router as auth_google_router
+from .OTA.firmware import router as ota_firmware_router
+from .admin import firmware_router as admin_firmware_router
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +45,14 @@ async def get_history(session_id: str):
     return {"error": "Session not found"}
 
 
-router.include_router(auth_router)
 v1_router.include_router(auth_router)
 router.include_router(auth_google_router)
 router.include_router(robot_router)
 router.include_router(otp_router)
 router.include_router(ota_activate_router)
+
+router.include_router(ota_firmware_router)
+router.include_router(admin_firmware_router)
 
 
 @router.post("/mcp/tools")

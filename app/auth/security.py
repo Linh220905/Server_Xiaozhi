@@ -57,19 +57,30 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> TokenData:
-    """Get current user from token."""
+from fastapi import Request
+async def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> TokenData:
+    """Get current user from token or session cookie."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    token = None
+    # Ưu tiên Bearer token
+    if credentials and credentials.credentials:
+        token = credentials.credentials
+    # Nếu không có Bearer, lấy từ cookie nexus_session
+    if not token:
+        token = request.cookies.get("nexus_session")
+    if not token:
+        raise credentials_exception
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        username: Optional[str] = payload.get("sub")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: Optional[str] = payload.get("sub") or payload.get("email")
+        role: Optional[str] = payload.get("role")
         if username is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(username=username, role=role)
     except JWTError:
         raise credentials_exception
     return token_data
@@ -84,10 +95,9 @@ async def get_current_active_user(current_user: TokenData = Depends(get_current_
 
 def check_admin_role(current_user: TokenData = Depends(get_current_user)):
     """Check if current user has admin role."""
-    # Lấy username admin từ biến môi trường (mặc định là 'admin')
-    import os
-    admin_username = os.environ.get("ADMIN_USERNAME", "admin")
-    if current_user.username != admin_username:
+    # Nếu token không có role, mặc định không phải admin
+    role = getattr(current_user, "role", None)
+    if role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Operation not allowed, admin role required"
