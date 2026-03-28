@@ -8,7 +8,9 @@ Dùng asyncio.Queue để pre-fetch TTS:
 """
 
 import asyncio
+import json
 import logging
+import re
 from typing import Callable, Awaitable
 
 from app.mcp import MCPToolRegistry
@@ -245,58 +247,53 @@ class ConversationPipeline:
 
         async def producer():
             nonlocal full_response, producer_error
-            buffer = ""
-            emotion_parsed = False
             try:
+                raw_response_parts: list[str] = []
                 async for chunk in self._llm.chat_stream(user_text, chat_history):
                     if is_aborted() or should_stop_generation():
                         break
-                    full_response += chunk
-                    buffer += chunk
+                    raw_response_parts.append(chunk)
 
-                    # Parse emotion tag from start of LLM response: [emotion:xxx]
-                    # if not emotion_parsed and "[emotion:" in buffer:
-                    #     import re
-                    #     m = re.search(r'\[emotion:(\w+)\]', buffer)
-                    #     if m:
-                    #         emotion_name = m.group(1)
-                    #         emotion_parsed = True
-                    #         # Remove the tag from buffer so it's not spoken
-                    #         buffer = buffer[:m.start()] + buffer[m.end():]
-                    #         full_response = full_response.replace(m.group(0), "", 1)
-                    #         logger.info(f"Emotion detected: {emotion_name}")
-                    #         if on_emotion:
-                    #             await on_emotion(emotion_name)
-                    # Nếu chưa detect được emotion, gửi 'talk' để ESP32 luôn hiển thị icon nói
-                    # if not emotion_parsed and len(buffer) > 10:
-                    #     # Gửi 'talk' một lần khi bắt đầu nói
-                    #     emotion_parsed = True
-                    #     if on_emotion:
-                    #         await on_emotion("talk")
+                raw_response = "".join(raw_response_parts).strip()
+                if not raw_response:
+                    return
 
-                    # Tach tat ca cau da hoan chinh
-                    while True:
-                        sentence, buffer = self._extract_sentence(buffer)
-                        if not sentence:
-                            break
-                        await self._enqueue_sentence(
-                            sentence, queue, on_tts_sentence, is_aborted
-                        )
+                response_language, response_text = self._parse_llm_tts_payload(raw_response)
+                full_response = response_text
 
-                    # Neu chua co dau cau ma buffer da dai, cat chunk nho de TTS som
-                    while len(buffer) >= CHUNK_HARD_LIMIT and not is_aborted() and not should_stop_generation():
-                        text_chunk, buffer = self._extract_soft_chunk(buffer)
-                        if not text_chunk:
-                            break
-                        await self._enqueue_sentence(
-                            text_chunk, queue, on_tts_sentence, is_aborted
-                        )
+                buffer = response_text
+                while True:
+                    sentence, buffer = self._extract_sentence(buffer)
+                    if not sentence:
+                        break
+                    await self._enqueue_sentence(
+                        sentence,
+                        queue,
+                        on_tts_sentence,
+                        is_aborted,
+                        language=response_language,
+                    )
 
-                # Phan con lai
+                while len(buffer) >= CHUNK_HARD_LIMIT and not is_aborted() and not should_stop_generation():
+                    text_chunk, buffer = self._extract_soft_chunk(buffer)
+                    if not text_chunk:
+                        break
+                    await self._enqueue_sentence(
+                        text_chunk,
+                        queue,
+                        on_tts_sentence,
+                        is_aborted,
+                        language=response_language,
+                    )
+
                 remaining = buffer.strip()
                 if remaining and not is_aborted() and not should_stop_generation():
                     await self._enqueue_sentence(
-                        remaining, queue, on_tts_sentence, is_aborted
+                        remaining,
+                        queue,
+                        on_tts_sentence,
+                        is_aborted,
+                        language=response_language,
                     )
             except Exception as e:
                 producer_error = e
@@ -526,19 +523,82 @@ class ConversationPipeline:
         queue: asyncio.Queue,
         on_tts_sentence: Callable[[str], Awaitable[None]],
         is_aborted: Callable[[], bool],
+        *,
+        language: str | None = None,
     ) -> None:
         """TTS 1 cau → day tung opus frame vao queue."""
-        logger.info(f"\033[92m🔊 TTS: {sentence}\033[0m")
+        logger.info(f"\033[92m🔊 TTS[{language or 'auto'}]: {sentence}\033[0m")
         # Gui sentence marker qua queue de dong bo voi audio frames
         await queue.put((_SENTENCE_MARKER, sentence))
 
         frame_count = 0
-        async for opus_frame in self._tts.synthesize(sentence):
+        async for opus_frame in self._tts.synthesize(
+            sentence, language_hint=language
+        ):
             if is_aborted():
                 break
             await queue.put(opus_frame)
             frame_count += 1
         logger.info(f"\033[92m   Queued {frame_count} frames for: {sentence[:40]}\033[0m")
+
+    @staticmethod
+    def _parse_llm_tts_payload(raw_response: str) -> tuple[str | None, str]:
+        """
+        Parse response format:
+        {"language":"vi|en","text":"..."}
+        Fallback: treat raw as plain text.
+        """
+        raw = (raw_response or "").strip()
+        if not raw:
+            return (None, "")
+
+        def _extract_payload(obj: dict) -> tuple[str | None, str] | None:
+            text_val = obj.get("text")
+            if not isinstance(text_val, str):
+                return None
+            lang_val = str(obj.get("language", "")).strip().lower()
+            if lang_val not in {"vi", "en"}:
+                lang_val = None
+            return (lang_val, text_val.strip())
+
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                payload = _extract_payload(parsed)
+                if payload:
+                    return payload
+        except Exception:
+            pass
+
+        fenced = re.sub(
+            r"^```(?:json)?\s*|\s*```$",
+            "",
+            raw,
+            flags=re.IGNORECASE | re.DOTALL,
+        ).strip()
+        try:
+            parsed = json.loads(fenced)
+            if isinstance(parsed, dict):
+                payload = _extract_payload(parsed)
+                if payload:
+                    return payload
+        except Exception:
+            pass
+
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            snippet = raw[start : end + 1]
+            try:
+                parsed = json.loads(snippet)
+                if isinstance(parsed, dict):
+                    payload = _extract_payload(parsed)
+                    if payload:
+                        return payload
+            except Exception:
+                pass
+
+        return (None, raw)
 
     @staticmethod
     def _extract_sentence(buffer: str) -> tuple[str | None, str]:

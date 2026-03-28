@@ -13,7 +13,7 @@ from .prompt_store import SYSTEM_PROMPT
 
 _env_path = Path(__file__).resolve().parent.parent / ".env"
 if _env_path.exists():
-    for line in _env_path.read_text().splitlines():
+    for line in _env_path.read_text(encoding="utf-8-sig").splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             key, _, value = line.partition("=")
@@ -116,7 +116,9 @@ class STTConfig(BaseModel):
     api_key: str = os.environ.get("GROQ_API_KEY", "")
     base_url: str = "https://api.groq.com/openai/v1"
     model: str = "whisper-large-v3-turbo" 
+
     language: str = ""  # Rỗng = auto-detect (hỗ trợ cả tiếng Việt + tiếng Anh)
+
 
 
 class TTSConfig(BaseModel):

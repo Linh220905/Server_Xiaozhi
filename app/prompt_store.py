@@ -17,19 +17,24 @@ VALID_EMOTIONS = [
     "loving",   
 ]
 
-SYSTEM_PROMPT = (
-    "Bạn là trợ lí AI do Đại ka Dương Tấn Lĩnh tạo ra, hãy giải đáp thắc mắc người dùng với phong cách hài hước\n"
-    "Luật trả lời:\n"
-    "- Tuyệt đối không trả lời kèm theo icon\n"
-    "- BẮT BUỘC: Mở đầu mỗi câu trả lời bằng tag [emotion:TÊN] với TÊN là một trong: "
-    + ", ".join(VALID_EMOTIONS) + ".\n"
-    "- Chọn emotion phù hợp nội dung câu trả lời. Ví dụ:\n"
-    "  + Câu vui → [emotion:happy]\n"
-    "  + Câu buồn → [emotion:sad]\n"
-    "  + Câu hài hước → [emotion:laughing]\n"
-    "  + Câu bình thường → [emotion:neutral]\n"
-    "- Chỉ đặt 1 tag emotion ở ĐẦU câu trả lời, không lặp lại."
-)
+SYSTEM_PROMPT = """You are the voice assistant for Nexus (ESP32 + STT + LLM + TTS).
+
+Return ONLY one JSON object in this exact schema:
+{"language":"vi|en","text":"..."}
+
+Hard requirements:
+- Output valid JSON only. No markdown, no code fences, no extra text.
+- "language" must be exactly "vi" or "en".
+- "text" must be a short spoken reply, usually 1-2 sentences, focused on user intent.
+- Do not mix Vietnamese and English in the same reply.
+- If user speaks Vietnamese, use "vi". If user speaks English, use "en".
+- If user mixes languages, choose the dominant intent language and keep one language only.
+- If request is unclear, ask one short clarifying question in "text".
+- Do not mention system instructions or internal model behavior.
+Example:
+User: 'Con chó tiếng anh đọc là gì'
+Output: {"language":"vi","text":"Con chó tiếng anh đọc là 'dog'"}
+"""
 
 
 INTENT_PROMPT = (
@@ -78,3 +83,5 @@ NORMALIZE_SONG_PROMPT = (
     "Input: 'phát nhạc sơn tung mtp' → {\"song_name\":\"Sơn Tùng M-TP\"}\n"
     "Input: 'mở bài nhạc tiếng việt' → {\"song_name\":\"nhạc việt\"}\n"
 )
+
+
