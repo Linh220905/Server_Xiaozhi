@@ -53,15 +53,6 @@
 
 ---
 
-## How It Works
-
-```
-┌─────────┐        WebSocket         ┌──────────────────────────────────────────┐        WebSocket        ┌─────────┐
-│  ESP32  │ ──── Audio Stream ─────► │  Decode → STT → LLM → TTS → Encode     │ ──── Audio Stream ────► │  ESP32  │
-│ (Mic)   │                          │              Nexus Server               │                          │(Speaker)│
-└─────────┘                          └──────────────────────────────────────────┘                          └─────────┘
-```
-
 ### Pipeline Stages
 
 | # | Stage | What Happens |
@@ -139,7 +130,7 @@ Access the built-in management interface:
 
 | URL | Description |
 |-----|-------------|
-| `/admin/` | Device & user management dashboard |
+| `/dashboard/` | Device & user management dashboard |
 | `/docs` | Interactive API reference (Swagger UI) |
 | `/auth/google-login` | Google OAuth2 sign-in |
 
@@ -196,7 +187,7 @@ This project is proprietary software developed by **Tan Linh**. All rights reser
 
 ## Nexus là gì?
 
-**Nexus** là nền tảng AI giọng nói sẵn sàng triển khai, kết nối phần cứng IoT với các mô hình AI hàng đầu thế giới — theo thời gian thực. Nói chuyện với thiết bị của bạn, và nó sẽ trả lời bằng giọng nói tự nhiên, với khả năng hiểu ngữ cảnh như con người.
+**Nexus** là nền tảng AI giọng nói sẵn sàng triển khai, kết nối phần cứng IoT với các mô hình AI — theo thời gian thực. Nói chuyện với thiết bị của bạn, và nó sẽ trả lời bằng giọng nói tự nhiên, với khả năng hiểu ngữ cảnh như con người.
 
 > 🎯 **Một nền tảng. Mọi thiết bị. Trí tuệ tức thì.**
 
@@ -218,15 +209,6 @@ This project is proprietary software developed by **Tan Linh**. All rights reser
 > 🔗 **[nexus.tanlinh.dev](https://nexus.tanlinh.dev/)** — Phiên bản production chính thức
 
 ---
-
-## Cách hoạt động
-
-```
-┌─────────┐        WebSocket         ┌──────────────────────────────────────────┐        WebSocket        ┌─────────┐
-│  ESP32  │ ──── Luồng Audio ──────► │  Giải mã → STT → LLM → TTS → Mã hóa   │ ──── Luồng Audio ─────► │  ESP32  │
-│ (Mic)   │                          │              Nexus Server               │                          │(Speaker)│
-└─────────┘                          └──────────────────────────────────────────┘                          └─────────┘
-```
 
 ### Các giai đoạn xử lý
 
@@ -305,7 +287,7 @@ Truy cập giao diện quản trị tích hợp:
 
 | URL | Mô tả |
 |-----|-------|
-| `/admin/` | Quản lý thiết bị & người dùng |
+| `/dashboard/` | Quản lý thiết bị & người dùng |
 | `/docs` | Tài liệu API tương tác (Swagger UI) |
 | `/auth/google-login` | Đăng nhập qua Google OAuth2 |
 
