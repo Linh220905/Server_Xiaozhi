@@ -1,13 +1,14 @@
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.models import HealthResponse, SessionInfo
 from app.websocket.session import get_all_sessions
+from app.database.chat_history import get_chat_sessions_for_user
 from .auth import router as auth_router
 from .robot_api import router as robot_router
 from .otp import router as otp_router
 from .ota_activate import router as ota_activate_router
-from .auth_google import router as auth_google_router
+from .auth_google import router as auth_google_router, require_viewer
 from .OTA.firmware import router as ota_firmware_router
 from .admin import firmware_router as admin_firmware_router
 
@@ -53,6 +54,14 @@ router.include_router(ota_activate_router)
 
 router.include_router(ota_firmware_router)
 router.include_router(admin_firmware_router)
+
+
+@router.get("/chat-history")
+async def chat_history(session: dict = Depends(require_viewer)):
+    """Lấy lịch sử chat của tất cả robot thuộc user hiện tại (chỉ dành cho user/viewer)."""
+    email = session.get("email", "")
+    sessions = get_chat_sessions_for_user(email)
+    return {"ok": True, "sessions": sessions}
 
 
 @router.post("/mcp/tools")

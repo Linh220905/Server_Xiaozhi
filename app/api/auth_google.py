@@ -80,7 +80,7 @@ async def google_auth(request: Request):
 
     session_token = create_session_token(user["email"], role="viewer")
 
-    response = RedirectResponse(url="/admin/", status_code=302)
+    response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(
         key="nexus_session",
         value=session_token,

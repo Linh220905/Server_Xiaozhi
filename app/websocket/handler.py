@@ -18,6 +18,7 @@ from app.mcp import MCPToolRegistry
 from app.models import ServerHello, AudioParams
 from app.websocket.session import Session, create_session, remove_session
 from app.robots.crud import get_robot_config, get_robot_by_mac, create_robot, update_robot_status, generate_otp
+from app.database.chat_history import save_chat_session
 from app.robots.models import RobotCreate
 
 logger = logging.getLogger(__name__)
@@ -591,6 +592,15 @@ async def _run_pipeline(ws: WebSocket, session: Session) -> None:
             user_text, assistant_text = result
             session.save_history(user_text, assistant_text)
             logger.info(f"[{session.device_id}] Pipeline done -- user: '{user_text[:50]}' -> assistant: '{assistant_text[:50]}'")
+            # Persist chat history to DB (upsert per robot)
+            try:
+                save_chat_session(
+                    robot_mac=session.device_id,
+                    session_id=session.session_id,
+                    messages=session.chat_history,
+                )
+            except Exception as e:
+                logger.warning("[%s] Failed to save chat session: %s", session.device_id, e)
         else:
             logger.warning(f"[{session.device_id}] Pipeline returned no result")
     except Exception as e:

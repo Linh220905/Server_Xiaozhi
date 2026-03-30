@@ -65,9 +65,24 @@ def init_database():
     if "otp_attempts" not in robot_columns:
         cursor.execute("ALTER TABLE robots ADD COLUMN otp_attempts INTEGER DEFAULT 0")
     
+    # Create chat_sessions table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            robot_mac TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            messages TEXT DEFAULT '[]',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (robot_mac) REFERENCES robots(mac_address) ON DELETE CASCADE
+        )
+    """)
+
     # Create indexes
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_robots_owner ON robots(owner_username)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_sessions_robot ON chat_sessions(robot_mac)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_sessions_session ON chat_sessions(session_id)")
     
     # Insert default admin user if not exists, lấy từ biến môi trường nếu có
     import os

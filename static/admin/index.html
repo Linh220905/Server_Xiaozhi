@@ -581,6 +581,72 @@
     }
     input[type="file"]:hover { border-color: var(--red); }
 
+    /* ────── CHAT HISTORY ────── */
+    .chat-session-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r); margin-bottom: 1.2rem;
+      box-shadow: var(--shadow-sm); overflow: hidden;
+      animation: fadeUp .4s cubic-bezier(.22,.68,0,1.2) both;
+    }
+    .chat-session-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.25rem; cursor: pointer;
+      background: var(--bg3); border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    .chat-session-header:hover { background: var(--border); }
+    .chat-session-header .robot-label {
+      display: flex; align-items: center; gap: .65rem;
+      font-weight: 700; font-size: .88rem; color: var(--text);
+    }
+    .chat-session-header .robot-label .robot-icon {
+      width: 32px; height: 32px; border-radius: 8px; background: var(--red-soft);
+      display: grid; place-items: center; font-size: 1rem; flex-shrink: 0;
+    }
+    .chat-session-header .session-meta {
+      font-size: .68rem; color: var(--text-3); font-weight: 600;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .chat-session-header .toggle-icon {
+      transition: transform .2s; font-size: .75rem; color: var(--text-3);
+    }
+    .chat-session-card.open .toggle-icon { transform: rotate(180deg); }
+    .chat-messages {
+      display: none; padding: 1rem 1.25rem;
+      max-height: 450px; overflow-y: auto;
+    }
+    .chat-session-card.open .chat-messages { display: block; }
+    .chat-msg {
+      display: flex; gap: .65rem; margin-bottom: .85rem;
+      animation: fadeUp .2s ease both;
+    }
+    .chat-msg.user-msg { flex-direction: row-reverse; }
+    .chat-msg-avatar {
+      width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+      display: grid; place-items: center; font-size: .8rem;
+    }
+    .chat-msg.user-msg .chat-msg-avatar { background: var(--blue-d); }
+    .chat-msg.bot-msg .chat-msg-avatar { background: var(--red-soft); }
+    .chat-msg-bubble {
+      max-width: 75%; padding: .7rem 1rem; border-radius: 12px;
+      font-size: .82rem; line-height: 1.6; font-weight: 500;
+      word-break: break-word;
+    }
+    .chat-msg.user-msg .chat-msg-bubble {
+      background: var(--blue-d); color: var(--text);
+      border-bottom-right-radius: 4px;
+    }
+    .chat-msg.bot-msg .chat-msg-bubble {
+      background: var(--bg3); color: var(--text);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+    .chat-msg-time {
+      font-size: .6rem; color: var(--text-3); margin-top: .25rem;
+      font-weight: 600;
+    }
+    .chat-msg.user-msg .chat-msg-time { text-align: right; }
+
     /* ────── ANIMATIONS ────── */
     @keyframes fadeUp   { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
     @keyframes slideUp  { from { opacity:0; transform:translateY(20px) scale(0.97); } to { opacity:1; transform:none; } }
@@ -685,6 +751,9 @@
     </div>
     <div class="nav-item viewer-only" data-tab="claim-robot" onclick="switchTab('claim-robot',this)">
       <span class="nav-icon">🔑</span> Claim Robot
+    </div>
+    <div class="nav-item viewer-only" data-tab="chat-history" onclick="switchTab('chat-history',this); loadChatHistory();">
+      <span class="nav-icon">💬</span> Chat History
     </div>
 
     <div class="sb-footer">
@@ -859,6 +928,27 @@
           </button>
         </form>
         <div id="claim-result" style="margin-top:1.2rem; display:none;"></div>
+      </div>
+    </div>
+
+    <!-- ── Chat History (viewer only) ── -->
+    <div class="tab-view" id="tab-chat-history">
+      <div class="topbar">
+        <div>
+          <div class="page-title">💬 Chat History</div>
+          <div class="page-sub">Xem lại lịch sử trò chuyện với các robot của bạn</div>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost btn-sm" onclick="loadChatHistory()">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <div id="chat-history-container">
+        <div class="empty-state">
+          <div class="ei">💬</div>
+          <h3>Chưa có lịch sử trò chuyện</h3>
+          <p>Hãy bắt đầu nói chuyện với robot của bạn!</p>
+        </div>
       </div>
     </div>
 
@@ -1271,6 +1361,63 @@
       } catch(err) { toast('✕', 'Network error', 'error'); }
       btn.innerHTML = '⬆ Upload Firmware'; btn.disabled = false;
     });
+  }
+
+  /* ═══════ CHAT HISTORY ═══════ */
+  async function loadChatHistory() {
+    const container = document.getElementById('chat-history-container');
+    container.innerHTML = '<div style="text-align:center; padding:2rem;"><span class="spinner spinner-dark"></span><br><span style="font-size:.8rem; color:var(--text-3); margin-top:.5rem; display:inline-block;">Đang tải lịch sử…</span></div>';
+    try {
+      const res = await apiFetch('/api/chat-history');
+      if (!res.ok) { container.innerHTML = '<div class="empty-state"><div class="ei">⚠️</div><h3>Không thể tải lịch sử</h3></div>'; return; }
+      const data = await res.json();
+      const sessions = data.sessions || [];
+      if (!sessions.length) {
+        container.innerHTML = '<div class="empty-state"><div class="ei">💬</div><h3>Chưa có lịch sử trò chuyện</h3><p>Hãy bắt đầu nói chuyện với robot của bạn!</p></div>';
+        return;
+      }
+      container.innerHTML = sessions.map((s, idx) => {
+        const messages = s.messages || [];
+        const msgCount = messages.length;
+        const updatedAt = s.updated_at ? fmtDate(s.updated_at) : '—';
+        const robotName = s.robot_name || s.robot_mac || 'Robot';
+        const msgsHtml = messages.map(m => {
+          const isUser = m.role === 'user';
+          const cls = isUser ? 'user-msg' : 'bot-msg';
+          const avatar = isUser ? '👤' : '🤖';
+          return `<div class="chat-msg ${cls}">
+            <div class="chat-msg-avatar">${avatar}</div>
+            <div>
+              <div class="chat-msg-bubble">${esc(m.content)}</div>
+            </div>
+          </div>`;
+        }).join('');
+        return `<div class="chat-session-card" style="animation-delay:${idx*.08}s" id="chat-session-${idx}">
+          <div class="chat-session-header" onclick="toggleChatSession(${idx})">
+            <div class="robot-label">
+              <div class="robot-icon">🤖</div>
+              <div>
+                <div>${esc(robotName)}</div>
+                <div style="font-size:.65rem; color:var(--text-3); font-weight:600; margin-top:1px;">${esc(s.robot_mac || '')}</div>
+              </div>
+            </div>
+            <div class="session-meta">
+              <span>${msgCount} tin nhắn</span>
+              <span>🕐 ${updatedAt}</span>
+              <span class="toggle-icon">▼</span>
+            </div>
+          </div>
+          <div class="chat-messages">${msgsHtml || '<div style="text-align:center; color:var(--text-3); font-size:.8rem; padding:1rem;">Không có tin nhắn</div>'}</div>
+        </div>`;
+      }).join('');
+    } catch(err) {
+      container.innerHTML = '<div class="empty-state"><div class="ei">⚠️</div><h3>Lỗi kết nối</h3><p>Không thể tải lịch sử trò chuyện</p></div>';
+    }
+  }
+
+  function toggleChatSession(idx) {
+    const card = document.getElementById('chat-session-' + idx);
+    if (card) card.classList.toggle('open');
   }
 
   setInterval(() => { if (currentUser) loadRobots(); }, 30000);
