@@ -5,411 +5,602 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nexus — Robot Management</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg:        #07090f;
-      --bg2:       #0b0f1a;
-      --bg3:       #10141f;
-      --surface:   rgba(16,20,31,0.9);
-      --border:    rgba(255,255,255,.07);
-      --border-hi: rgba(255,255,255,.14);
-      --accent:    #4f8fff;
-      --accent2:   #7b61ff;
-      --accent-d:  rgba(79,143,255,.12);
-      --accent-g:  rgba(79,143,255,.3);
-      --green:     #2dd98f;
-      --green-d:   rgba(45,217,143,.1);
-      --red:       #ff5370;
-      --red-d:     rgba(255,83,112,.1);
-      --text:      #c8d0e4;
-      --text-2:    #6b7a99;
-      --text-3:    #3d4a66;
-      --r:         12px;
-      --r-sm:      8px;
+      --bg:        #f5f4f0;
+      --bg2:       #ffffff;
+      --bg3:       #faf9f6;
+      --surface:   rgba(255,255,255,0.95);
+      --border:    #e8e5de;
+      --border-hi: #d4cfc4;
+      --red:       #e8321a;
+      --red-d:     #c92810;
+      --red-soft:  rgba(232,50,26,0.08);
+      --red-mid:   rgba(232,50,26,0.15);
+      --green:     #1a9e5c;
+      --green-d:   rgba(26,158,92,0.1);
+      --amber:     #d97706;
+      --amber-d:   rgba(217,119,6,0.1);
+      --blue:      #2563eb;
+      --blue-d:    rgba(37,99,235,0.08);
+      --text:      #1a1814;
+      --text-2:    #6b6558;
+      --text-3:    #b0aa9e;
+      --text-inv:  #ffffff;
+      --shadow-sm: 0 1px 4px rgba(26,24,20,0.07);
+      --shadow-md: 0 4px 16px rgba(26,24,20,0.10);
+      --shadow-lg: 0 12px 40px rgba(26,24,20,0.13);
+      --r:         14px;
+      --r-sm:      9px;
+      --r-xs:      6px;
     }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: 'DM Mono', monospace;
+      font-family: 'Manrope', sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-    }
-    body::before {
-      content: '';
-      position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      background:
-        radial-gradient(ellipse 80% 60% at -10% 0%, rgba(79,143,255,.06) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 110% 100%, rgba(123,97,255,.05) 0%, transparent 55%);
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* ─── LOGIN ─── */
+    /* ────── TEXTURE OVERLAY ────── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      background-size: 200px;
+      opacity: 0.6;
+    }
+
+    /* ══════════════════════════════
+       LOGIN PAGE
+    ══════════════════════════════ */
     #login-page {
       position: relative; z-index: 10;
       min-height: 100vh;
       display: flex; align-items: center; justify-content: center;
       padding: 1.5rem;
+      background: var(--bg);
     }
+
     .login-wrap {
-      display: flex; width: 100%; max-width: 860px; min-height: 500px;
-      border-radius: 20px; overflow: hidden;
+      display: flex; width: 100%; max-width: 900px; min-height: 540px;
+      border-radius: 24px; overflow: hidden;
       border: 1px solid var(--border);
-      box-shadow: 0 40px 100px rgba(0,0,0,.6);
-      animation: fadeUp .5s ease;
+      box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.8) inset;
+      animation: fadeUp .5s cubic-bezier(.22,.68,0,1.2);
     }
+
     .login-visual {
-      flex: 1; background: var(--bg3);
-      border-right: 1px solid var(--border);
+      flex: 1;
+      background: #1a1814;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      padding: 3rem 2.5rem; position: relative; overflow: hidden;
+      padding: 3.5rem 2.5rem; position: relative; overflow: hidden;
     }
+
+    /* Subtle grid pattern */
     .login-visual::before {
-      content: ''; position: absolute; inset: 0;
-      background: radial-gradient(ellipse 70% 60% at 50% 30%, rgba(79,143,255,.08) 0%, transparent 70%);
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 32px 32px;
     }
-    .visual-avatar {
-      width: 110px; height: 110px; border-radius: 22px;
-      object-fit: cover; position: relative; z-index: 1;
-      border: 2px solid rgba(79,143,255,.3);
-      box-shadow: 0 0 50px rgba(79,143,255,.18), 0 16px 40px rgba(0,0,0,.4);
-      margin-bottom: 1.75rem;
-      background: var(--accent-d);
+
+    /* Red glow blob bottom */
+    .login-visual::after {
+      content: '';
+      position: absolute;
+      width: 320px; height: 320px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(232,50,26,0.22) 0%, transparent 70%);
+      bottom: -80px; left: 50%; transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .visual-robot-wrap {
+      position: relative; z-index: 1; margin-bottom: 2rem;
       display: flex; align-items: center; justify-content: center;
-      font-size: 3.2rem;
+    }
+
+    /* Glowing platform ring */
+    .visual-robot-wrap::after {
+      content: '';
+      position: absolute;
+      bottom: -10px; left: 50%; transform: translateX(-50%);
+      width: 120px; height: 18px; border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(232,50,26,0.45) 0%, transparent 70%);
+      filter: blur(6px);
+    }
+
+    .visual-avatar {
+      width: 130px; height: 130px; border-radius: 28px;
+      border: 1.5px solid rgba(255,255,255,0.1);
+      box-shadow:
+        0 0 0 8px rgba(232,50,26,0.06),
+        0 0 0 16px rgba(232,50,26,0.03),
+        0 20px 50px rgba(0,0,0,0.5);
+      background: rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3.5rem;
+      overflow: hidden; backdrop-filter: blur(10px);
     }
     .visual-avatar img {
-      width: 100%; height: 100%; object-fit: cover;
-      border-radius: 20px; display: block;
+      width: 100%; height: 100%; object-fit: contain;
+      display: block; padding: 4px;
     }
+
     .login-visual h2 {
-      font-family: 'Syne', sans-serif;
-      font-size: 1.55rem; font-weight: 800; color: #fff;
-      text-align: center; margin-bottom: .45rem;
-      position: relative; z-index: 1;
+      font-family: 'Fraunces', serif;
+      font-size: 2rem; font-weight: 900; color: #fff;
+      text-align: center; margin-bottom: .5rem;
+      position: relative; z-index: 1; letter-spacing: -.03em;
     }
     .login-visual p {
-      font-size: .75rem; color: var(--text-2);
-      text-align: center; line-height: 1.65;
+      font-size: .8rem; color: rgba(255,255,255,0.45);
+      text-align: center; line-height: 1.75;
       position: relative; z-index: 1;
     }
     .login-badges {
-      display: flex; gap: .45rem; flex-wrap: wrap;
-      justify-content: center; margin-top: 1.75rem;
+      display: flex; gap: .4rem; flex-wrap: wrap;
+      justify-content: center; margin-top: 2rem;
       position: relative; z-index: 1;
     }
     .badge {
-      font-size: .63rem; padding: .28rem .65rem; border-radius: 99px;
-      background: rgba(255,255,255,.05); border: 1px solid var(--border);
-      color: var(--text-2); letter-spacing: .05em;
+      font-size: .64rem; padding: .28rem .65rem; border-radius: 99px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.55); letter-spacing: .05em; font-weight: 600;
     }
-    .login-form-wrap {
-      width: 360px; background: var(--bg2);
-      display: flex; flex-direction: column; justify-content: center;
-      padding: 3rem 2.5rem;
-    }
-    .login-form-wrap h3 {
-      font-family: 'Syne', sans-serif;
-      font-size: 1.2rem; font-weight: 700; color: #fff; margin-bottom: .3rem;
-    }
-    .login-form-wrap > p { font-size: .74rem; color: var(--text-2); margin-bottom: 2rem; }
 
-    /* ─── FIELDS ─── */
-    .field { margin-bottom: 1.1rem; }
+    .login-form-wrap {
+      width: 370px; background: var(--bg2);
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 3.5rem 2.75rem;
+    }
+    .login-logo-row {
+      display: flex; align-items: center; gap: .6rem; margin-bottom: 2.25rem;
+    }
+    .login-logo-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--red);
+    }
+    .login-logo-text {
+      font-family: 'Fraunces', serif;
+      font-size: 1rem; font-weight: 700; color: var(--text);
+      letter-spacing: -.01em;
+    }
+
+    .login-form-wrap h3 {
+      font-family: 'Fraunces', serif;
+      font-size: 1.65rem; font-weight: 900; color: var(--text);
+      margin-bottom: .3rem; letter-spacing: -.03em;
+    }
+    .login-form-wrap > p {
+      font-size: .8rem; color: var(--text-2); margin-bottom: 2.25rem;
+      font-weight: 500;
+    }
+
+    /* ────── FIELDS ────── */
+    .field { margin-bottom: 1.2rem; }
     .field label {
-      display: block; font-size: .67rem;
-      letter-spacing: .1em; text-transform: uppercase;
-      color: var(--text-2); margin-bottom: .45rem;
+      display: block; font-size: .72rem;
+      letter-spacing: .06em; text-transform: uppercase;
+      color: var(--text-2); margin-bottom: .5rem; font-weight: 700;
     }
     .field input, .field textarea, .field select {
-      width: 100%; background: rgba(0,0,0,.3);
-      border: 1px solid var(--border); border-radius: var(--r-sm);
-      padding: .72rem 1rem; color: var(--text);
-      font-family: 'DM Mono', monospace; font-size: .84rem;
-      outline: none; transition: border-color .18s, box-shadow .18s;
+      width: 100%;
+      background: var(--bg3);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: .78rem 1rem; color: var(--text);
+      font-family: 'Manrope', sans-serif; font-size: .88rem;
+      outline: none;
+      transition: border-color .18s, box-shadow .18s, background .18s;
       -webkit-appearance: none;
+      font-weight: 500;
     }
     .field input:focus, .field textarea:focus, .field select:focus {
-      border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-d);
+      border-color: var(--red); 
+      box-shadow: 0 0 0 3px var(--red-soft);
+      background: #fff;
     }
-    .field textarea { resize: vertical; min-height: 78px; }
-    .field select option { background: var(--bg3); }
+    .field input::placeholder { color: var(--text-3); }
+    .field textarea { resize: vertical; min-height: 82px; line-height: 1.6; }
+    .field select { cursor: pointer; }
+    .field select option { background: #fff; color: var(--text); }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
-    /* ─── BUTTONS ─── */
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
-      padding: .72rem 1.4rem; border: none; border-radius: var(--r-sm);
-      font-family: 'DM Mono', monospace; font-size: .82rem; font-weight: 500;
-      cursor: pointer; transition: all .18s; letter-spacing: .02em;
+    /* ────── DIVIDER ────── */
+    .or-divider {
+      display: flex; align-items: center; gap: .75rem; margin: 1.5rem 0;
     }
-    .btn-primary {
-      background: var(--accent); color: #fff;
-      box-shadow: 0 4px 20px rgba(79,143,255,.28);
+    .or-divider::before, .or-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
     }
-    .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 28px rgba(79,143,255,.38); }
-    .btn-primary:active { transform: none; }
-    .btn-ghost {
-      background: rgba(255,255,255,.05); color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .btn-ghost:hover { background: rgba(255,255,255,.09); border-color: var(--border-hi); }
-    .btn-danger { background: var(--red-d); color: var(--red); border: 1px solid rgba(255,83,112,.2); }
-    .btn-danger:hover { background: rgba(255,83,112,.18); }
-    .btn-sm { padding: .42rem .85rem; font-size: .75rem; }
-    .btn-full { width: 100%; }
+    .or-divider span { font-size: .73rem; color: var(--text-3); font-weight: 600; letter-spacing: .06em; }
 
-    /* ─── APP ─── */
+    /* ────── BUTTONS ────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+      padding: .78rem 1.5rem; border: none; border-radius: var(--r-sm);
+      font-family: 'Manrope', sans-serif; font-size: .85rem; font-weight: 700;
+      cursor: pointer; transition: all .18s cubic-bezier(.22,.68,0,1.2);
+      letter-spacing: .01em; position: relative; overflow: hidden;
+      text-decoration: none;
+    }
+    .btn::after {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(255,255,255,0); transition: background .15s;
+    }
+    .btn:hover::after { background: rgba(255,255,255,0.08); }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--red); color: #fff;
+      box-shadow: 0 2px 8px rgba(232,50,26,0.35), 0 1px 2px rgba(232,50,26,0.2);
+    }
+    .btn-primary:hover {
+      background: var(--red-d);
+      box-shadow: 0 4px 16px rgba(232,50,26,0.45), 0 2px 4px rgba(232,50,26,0.25);
+      transform: translateY(-1px);
+    }
+    .btn-primary:active { transform: translateY(0) scale(0.98); }
+
+    .btn-ghost {
+      background: var(--bg3); color: var(--text);
+      border: 1.5px solid var(--border);
+    }
+    .btn-ghost:hover {
+      background: var(--bg2); border-color: var(--border-hi);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-google {
+      background: var(--bg2); color: var(--text);
+      border: 1.5px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-google:hover {
+      background: var(--bg3); border-color: var(--border-hi);
+      box-shadow: var(--shadow-md);
+    }
+    .btn-danger { background: var(--red-soft); color: var(--red); border: 1.5px solid rgba(232,50,26,0.18); }
+    .btn-danger:hover { background: var(--red-mid); box-shadow: 0 2px 8px rgba(232,50,26,0.1); }
+    .btn-success { background: var(--green-d); color: var(--green); border: 1.5px solid rgba(26,158,92,0.2); }
+    .btn-sm { padding: .44rem .9rem; font-size: .78rem; border-radius: var(--r-xs); }
+    .btn-full { width: 100%; }
+    .btn-icon {
+      width: 34px; height: 34px; padding: 0; border-radius: var(--r-xs);
+      font-size: 1rem; flex-shrink: 0;
+    }
+
+    /* ══════════════════════════════
+       APP SHELL
+    ══════════════════════════════ */
     #app { display: none; position: relative; z-index: 10; min-height: 100vh; }
 
     .sidebar {
-      position: fixed; top: 0; left: 0; bottom: 0; width: 232px;
-      background: var(--bg2); border-right: 1px solid var(--border);
-      display: flex; flex-direction: column; z-index: 100; padding: 1.25rem 0;
+      position: fixed; top: 0; left: 0; bottom: 0; width: 240px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; z-index: 100;
+      box-shadow: var(--shadow-sm);
     }
+
     .sb-brand {
-      padding: .2rem 1.4rem 1.2rem;
-      border-bottom: 1px solid var(--border); margin-bottom: .5rem;
-      display: flex; align-items: center; gap: .7rem;
+      padding: 1.5rem 1.5rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: .75rem;
     }
     .sb-logo-box {
-      width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
-      overflow: hidden; border: 1px solid rgba(79,143,255,.28);
-      box-shadow: 0 0 14px rgba(79,143,255,.18);
-      background: var(--accent-d);
+      width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+      overflow: hidden;
+      background: var(--red);
       display: flex; align-items: center; justify-content: center;
       font-size: 1.1rem;
+      box-shadow: 0 2px 8px rgba(232,50,26,0.3);
     }
     .sb-logo-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .sb-brand-text h1 {
-      font-family: 'Syne', sans-serif;
-      font-size: .95rem; font-weight: 800; color: #fff; line-height: 1.2;
+      font-family: 'Fraunces', serif;
+      font-size: 1.1rem; font-weight: 900; color: var(--text); line-height: 1.1;
+      letter-spacing: -.02em;
     }
-    .sb-brand-text h1 span { color: var(--accent); }
-    .sb-brand-text p { font-size: .6rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .1em; }
+    .sb-brand-text h1 span { color: var(--red); }
+    .sb-brand-text p { font-size: .6rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .12em; font-weight: 700; margin-top: 1px; }
+
+    .nav-section-label {
+      font-size: .6rem; text-transform: uppercase; letter-spacing: .14em;
+      color: var(--text-3); font-weight: 800;
+      padding: 1.25rem 1.5rem .5rem;
+    }
     .nav-item {
       display: flex; align-items: center; gap: .65rem;
-      padding: .65rem 1.4rem; font-size: .8rem; color: var(--text-2);
-      cursor: pointer; border-left: 2px solid transparent;
-      transition: all .14s; user-select: none;
+      padding: .62rem 1.5rem; font-size: .82rem; color: var(--text-2);
+      cursor: pointer; border-left: 2.5px solid transparent;
+      transition: all .15s; user-select: none; font-weight: 600;
+      margin: 1px 0;
     }
-    .nav-item:hover { color: var(--text); background: rgba(255,255,255,.03); }
-    .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-d); }
-    .nav-icon { width: 18px; text-align: center; font-size: .9rem; }
+    .nav-item:hover { color: var(--text); background: var(--bg3); }
+    .nav-item.active { color: var(--red); border-left-color: var(--red); background: var(--red-soft); }
+    .nav-icon { width: 20px; text-align: center; font-size: .88rem; opacity: .85; }
+
     .sb-footer {
-      margin-top: auto; padding: 1rem 1.4rem;
+      margin-top: auto; padding: 1.25rem 1.5rem;
       border-top: 1px solid var(--border);
+      background: var(--bg3);
     }
-    .user-row { display: flex; align-items: center; gap: .65rem; margin-bottom: .75rem; }
+    .user-row {
+      display: flex; align-items: center; gap: .75rem; margin-bottom: .9rem;
+    }
     .user-av {
-      width: 32px; height: 32px; border-radius: var(--r-sm); flex-shrink: 0;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+      background: var(--red);
       display: grid; place-items: center;
-      font-family: 'Syne', sans-serif; font-size: .8rem; font-weight: 700; color: #fff;
+      font-family: 'Fraunces', serif; font-size: .95rem; font-weight: 900; color: #fff;
+      box-shadow: 0 2px 6px rgba(232,50,26,0.3);
     }
-    .user-info .name { font-size: .8rem; font-weight: 500; color: #fff; display: flex; align-items: center; gap: .4rem; }
-    .user-info .role { font-size: .6rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; }
+    .user-info .name {
+      font-size: .82rem; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; gap: .4rem;
+    }
+    .user-info .role { font-size: .65rem; color: var(--text-3); font-weight: 600; margin-top: 1px; }
     .role-badge {
-      font-size: .55rem; padding: .12rem .42rem; border-radius: 99px;
-      font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
-      line-height: 1;
+      font-size: .56rem; padding: .14rem .45rem; border-radius: 99px;
+      font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
     }
-    .role-badge.admin  { background: var(--red-d); color: var(--red); border: 1px solid rgba(255,83,112,.25); }
-    .role-badge.viewer { background: var(--accent-d); color: var(--accent); border: 1px solid rgba(79,143,255,.25); }
-    .admin-only { /* toggled via JS */ }
+    .role-badge.admin  { background: var(--red-soft); color: var(--red); border: 1px solid rgba(232,50,26,0.2); }
+    .role-badge.viewer { background: var(--blue-d); color: var(--blue); border: 1px solid rgba(37,99,235,0.2); }
+
     body.role-viewer .admin-only { display: none !important; }
-    .viewer-only { /* toggled via JS */ }
     body.role-admin .viewer-only { display: none !important; }
 
-    .main { margin-left: 232px; padding: 2rem 2.5rem 3rem; min-height: 100vh; }
+    /* ────── MAIN ────── */
+    .main { margin-left: 240px; padding: 2.5rem 2.75rem 4rem; min-height: 100vh; }
+
     .topbar {
       display: flex; align-items: flex-start; justify-content: space-between;
-      margin-bottom: 2rem; padding-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
     }
     .page-title {
-      font-family: 'Syne', sans-serif;
-      font-size: 1.35rem; font-weight: 800; color: #fff;
+      font-family: 'Fraunces', serif;
+      font-size: 1.6rem; font-weight: 900; color: var(--text);
+      letter-spacing: -.03em; line-height: 1.1;
     }
-    .page-sub { font-size: .73rem; color: var(--text-2); margin-top: .2rem; }
+    .page-sub { font-size: .78rem; color: var(--text-2); margin-top: .4rem; font-weight: 500; }
+    .topbar-actions { display: flex; gap: .6rem; align-items: center; }
 
-    /* Stats */
+    /* ────── STATS ────── */
     .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
     .stat-card {
-      background: var(--bg3); border: 1px solid var(--border);
-      border-radius: var(--r); padding: 1.2rem 1.4rem;
-      display: flex; align-items: center; gap: 1rem;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 1.35rem 1.5rem;
+      box-shadow: var(--shadow-sm);
+      display: flex; align-items: center; gap: 1.1rem;
+      transition: box-shadow .2s, transform .2s;
     }
+    .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
     .stat-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      display: grid; place-items: center; font-size: 1.1rem; flex-shrink: 0;
+      width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+      display: grid; place-items: center; font-size: 1.15rem;
     }
-    .si-blue  { background: var(--accent-d); }
+    .si-red   { background: var(--red-soft); }
     .si-green { background: var(--green-d); }
-    .si-gold  { background: rgba(245,166,35,.1); }
-    .stat-label { font-size: .66rem; letter-spacing: .09em; text-transform: uppercase; color: var(--text-2); margin-bottom: .18rem; }
-    .stat-value { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 800; color: #fff; }
+    .si-amber { background: var(--amber-d); }
+    .stat-label { font-size: .67rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin-bottom: .22rem; font-weight: 700; }
+    .stat-value { font-family: 'Fraunces', serif; font-size: 1.75rem; font-weight: 900; color: var(--text); line-height: 1; letter-spacing: -.03em; }
 
-    /* Robots grid */
+    /* ────── SECTION BAR ────── */
     .section-bar {
-      display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem;
     }
-    .section-title { font-family: 'Syne', sans-serif; font-size: .9rem; font-weight: 700; color: var(--text); }
+    .section-title { font-size: .9rem; font-weight: 800; color: var(--text); letter-spacing: -.01em; }
     .count-pill {
-      font-size: .67rem; color: var(--text-2);
-      background: rgba(255,255,255,.05); border: 1px solid var(--border);
-      padding: .2rem .6rem; border-radius: 99px;
+      font-size: .67rem; color: var(--text-2); font-weight: 700;
+      background: var(--bg3); border: 1px solid var(--border);
+      padding: .22rem .65rem; border-radius: 99px;
     }
-    .robots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 1rem; }
+
+    /* ────── ROBOT CARDS ────── */
+    .robots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(295px, 1fr)); gap: 1.1rem; }
 
     .robot-card {
-      background: var(--bg3); border: 1px solid var(--border);
+      background: var(--bg2); border: 1px solid var(--border);
       border-radius: var(--r); overflow: hidden;
       transition: border-color .2s, transform .2s, box-shadow .2s;
-      animation: fadeUp .35s ease both;
+      animation: fadeUp .4s cubic-bezier(.22,.68,0,1.2) both;
+      box-shadow: var(--shadow-sm);
     }
     .robot-card:hover {
-      border-color: var(--border-hi); transform: translateY(-3px);
-      box-shadow: 0 14px 44px rgba(0,0,0,.35);
+      border-color: var(--border-hi); transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
     }
+
     .card-cover {
-      height: 108px;
-      background: linear-gradient(135deg, var(--bg2), #0e1525);
+      height: 100px;
+      background: linear-gradient(135deg, var(--bg3) 0%, #edeae0 100%);
       border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: center;
       position: relative; overflow: hidden;
     }
-    .card-cover::before {
-      content: ''; position: absolute; inset: 0;
-      background: radial-gradient(ellipse 80% 80% at 50% 60%, rgba(79,143,255,.07) 0%, transparent 70%);
+    .card-cover-pattern {
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+      background-size: 20px 20px;
+      opacity: 0.5;
     }
     .card-avatar {
-      width: 62px; height: 62px; border-radius: 14px; position: relative; z-index: 1;
-      border: 2px solid rgba(79,143,255,.22);
-      box-shadow: 0 4px 20px rgba(0,0,0,.4);
-      background: var(--accent-d);
-      display: flex; align-items: center; justify-content: center; font-size: 1.9rem;
-      overflow: hidden; flex-shrink: 0;
+      width: 60px; height: 60px; border-radius: 15px; position: relative; z-index: 1;
+      border: 2px solid #fff;
+      box-shadow: 0 4px 16px rgba(26,24,20,0.12);
+      background: var(--red-soft);
+      display: flex; align-items: center; justify-content: center; font-size: 1.75rem;
+      overflow: hidden;
     }
     .card-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .card-status { position: absolute; top: .7rem; right: .7rem; z-index: 2; }
+    .card-status { position: absolute; top: .75rem; right: .75rem; z-index: 2; }
     .status-chip {
-      display: inline-flex; align-items: center; gap: .32rem;
-      padding: .2rem .58rem; border-radius: 99px;
-      font-size: .63rem; font-weight: 500; letter-spacing: .05em;
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .22rem .65rem; border-radius: 99px;
+      font-size: .65rem; font-weight: 700; letter-spacing: .04em;
+      border: 1px solid transparent;
     }
-    .status-online  { background: var(--green-d); color: var(--green); }
-    .status-offline { background: rgba(255,255,255,.05); color: var(--text-2); }
-    .status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-    .status-online .status-dot { animation: pulse 2s ease infinite; box-shadow: 0 0 5px currentColor; }
+    .status-online  { background: var(--green-d); color: var(--green); border-color: rgba(26,158,92,0.2); }
+    .status-offline { background: var(--bg); color: var(--text-3); border-color: var(--border); }
+    .status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .status-online .status-dot { animation: pulse 2s ease infinite; box-shadow: 0 0 4px currentColor; }
 
-    .card-body { padding: 1.1rem 1.15rem; }
-    .card-name { font-family: 'Syne', sans-serif; font-size: .98rem; font-weight: 700; color: #fff; margin-bottom: .12rem; }
-    .card-mac { font-size: .67rem; color: var(--text-3); letter-spacing: .06em; margin-bottom: .75rem; }
-    .card-desc {
-      font-size: .74rem; color: var(--text-2); line-height: 1.65; margin-bottom: .9rem;
-      min-height: 2.3em;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    .card-body { padding: 1.2rem 1.25rem; }
+    .card-name {
+      font-family: 'Fraunces', serif;
+      font-size: 1rem; font-weight: 700; color: var(--text);
+      margin-bottom: .1rem; letter-spacing: -.02em;
     }
-    .card-tags { display: flex; gap: .38rem; flex-wrap: wrap; margin-bottom: .9rem; }
-    .tag {
-      font-size: .65rem; color: var(--text-2);
-      background: rgba(255,255,255,.04); border: 1px solid var(--border);
-      padding: .2rem .52rem; border-radius: 5px;
+    .card-mac {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem; color: var(--text-3); letter-spacing: .06em; margin-bottom: .85rem;
     }
+
+    .card-info {
+      display: grid; grid-template-columns: auto 1fr; gap: .2rem .7rem;
+      font-size: .72rem; margin-bottom: .85rem;
+      background: var(--bg3); border-radius: var(--r-xs);
+      padding: .75rem; border: 1px solid var(--border);
+    }
+    .card-info-label { color: var(--text-3); font-weight: 700; text-transform: uppercase; font-size: .6rem; letter-spacing: .06em; padding: .1rem 0; }
+    .card-info-val { color: var(--text-2); font-weight: 600; padding: .1rem 0; }
+
     .card-actions {
       display: flex; gap: .5rem;
-      padding-top: .85rem; border-top: 1px solid var(--border);
+      padding-top: .9rem; border-top: 1px solid var(--border);
     }
 
-    /* Form */
+    /* ────── FORM CARD ────── */
     .form-card {
-      background: var(--bg3); border: 1px solid var(--border);
-      border-radius: var(--r); padding: 2rem 2rem 2.5rem; max-width: 680px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 2.25rem 2.25rem 2.75rem;
+      max-width: 700px; box-shadow: var(--shadow-sm);
     }
     .form-section {
-      background: rgba(0,0,0,.2); border: 1px solid var(--border);
-      border-radius: var(--r-sm); padding: 1.2rem; margin: 1.4rem 0;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: var(--r-sm); padding: 1.35rem; margin: 1.5rem 0;
     }
     .form-section-title {
-      font-family: 'Syne', sans-serif; font-size: .7rem; font-weight: 700;
-      color: var(--accent); letter-spacing: .12em; text-transform: uppercase;
-      margin-bottom: 1rem;
+      font-size: .67rem; font-weight: 800;
+      color: var(--red); letter-spacing: .1em; text-transform: uppercase;
+      margin-bottom: 1.1rem; display: flex; align-items: center; gap: .4rem;
+    }
+    .form-section-title::before {
+      content: ''; display: inline-block;
+      width: 3px; height: 12px; background: var(--red); border-radius: 2px;
     }
 
-    /* Modal */
+    /* ────── MODAL ────── */
     .modal-overlay {
       display: none; position: fixed; inset: 0; z-index: 300;
-      background: rgba(0,0,0,.72); backdrop-filter: blur(8px);
+      background: rgba(26,24,20,0.45); backdrop-filter: blur(10px);
       align-items: center; justify-content: center; padding: 1.5rem;
     }
     .modal-overlay.open { display: flex; animation: fadeIn .2s ease; }
     .modal-box {
-      width: 100%; max-width: 540px;
+      width: 100%; max-width: 560px;
       background: var(--bg2); border: 1px solid var(--border-hi);
-      border-radius: 16px; padding: 1.75rem;
-      box-shadow: 0 40px 80px rgba(0,0,0,.6);
-      animation: fadeUp .22s ease;
+      border-radius: 20px; padding: 2rem;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp .25s cubic-bezier(.22,.68,0,1.2);
       max-height: 90vh; overflow-y: auto;
     }
     .modal-header {
-      display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.75rem;
     }
-    .modal-header h2 { font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 700; color: #fff; }
+    .modal-header h2 {
+      font-family: 'Fraunces', serif;
+      font-size: 1.15rem; font-weight: 900; color: var(--text); letter-spacing: -.02em;
+    }
     .close-btn {
-      width: 30px; height: 30px; border-radius: var(--r-sm);
-      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      width: 32px; height: 32px; border-radius: var(--r-xs);
+      background: var(--bg3); border: 1px solid var(--border);
       color: var(--text-2); cursor: pointer;
-      display: grid; place-items: center; font-size: 1rem; transition: all .15s;
+      display: grid; place-items: center; font-size: 1rem;
+      transition: all .15s; font-family: sans-serif;
     }
-    .close-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
+    .close-btn:hover { color: var(--text); background: var(--border); }
 
-    /* Toast */
+    /* ────── TOAST ────── */
     .toast {
-      position: fixed; bottom: 1.75rem; right: 1.75rem; z-index: 999;
-      background: var(--bg2); border: 1px solid var(--border-hi);
-      border-radius: var(--r); padding: .85rem 1.25rem;
-      font-size: .79rem; box-shadow: 0 8px 32px rgba(0,0,0,.5);
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+      background: var(--text); color: var(--text-inv);
+      border-radius: var(--r); padding: .9rem 1.35rem;
+      font-size: .8rem; font-weight: 600;
+      box-shadow: 0 8px 32px rgba(26,24,20,0.25);
       display: flex; align-items: center; gap: .6rem;
-      opacity: 0; transform: translateY(8px);
-      transition: all .25s ease; pointer-events: none; max-width: 280px;
+      opacity: 0; transform: translateY(12px);
+      transition: all .28s cubic-bezier(.22,.68,0,1.2);
+      pointer-events: none; max-width: 300px;
     }
     .toast.show { opacity: 1; transform: translateY(0); }
-    .toast.success { border-color: rgba(45,217,143,.28); }
-    .toast.error   { border-color: rgba(255,83,112,.28); }
+    .toast.success { background: var(--green); }
+    .toast.error   { background: var(--red); }
 
+    /* ────── SPINNER ────── */
     .spinner {
-      width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.15);
+      width: 15px; height: 15px;
+      border: 2px solid rgba(255,255,255,0.3);
       border-top-color: #fff; border-radius: 50%;
-      animation: spin .65s linear infinite; display: inline-block;
+      animation: spin .65s linear infinite; display: inline-block; flex-shrink: 0;
     }
+    .spinner-dark {
+      border-color: rgba(26,24,20,0.15);
+      border-top-color: var(--text);
+    }
+
+    /* ────── EMPTY STATE ────── */
     .empty-state {
-      text-align: center; padding: 4rem 2rem;
-      border: 1px dashed var(--border); border-radius: var(--r);
+      text-align: center; padding: 5rem 2rem;
+      border: 2px dashed var(--border); border-radius: var(--r);
+      background: var(--bg2);
     }
-    .empty-state .ei { font-size: 2.5rem; margin-bottom: 1rem; opacity: .3; }
-    .empty-state h3 { font-family: 'Syne', sans-serif; font-size: .88rem; color: var(--text-2); margin-bottom: .4rem; }
-    .empty-state p { font-size: .73rem; color: var(--text-3); }
+    .empty-state .ei { font-size: 2.75rem; margin-bottom: 1.1rem; opacity: .3; }
+    .empty-state h3 { font-family: 'Fraunces', serif; font-size: 1rem; color: var(--text-2); margin-bottom: .5rem; font-weight: 700; letter-spacing: -.02em; }
+    .empty-state p { font-size: .78rem; color: var(--text-3); font-weight: 500; }
 
+    /* ────── TABS ────── */
     .tab-view { display: none; }
-    .tab-view.active { display: block; animation: fadeUp .3s ease; }
+    .tab-view.active { display: block; animation: fadeUp .3s cubic-bezier(.22,.68,0,1.2); }
 
-    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
-    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-    @keyframes spin   { to { transform: rotate(360deg); } }
-    @keyframes pulse  { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+    /* ────── INPUT FILE ────── */
+    input[type="file"] {
+      width: 100%; padding: .6rem .85rem;
+      background: var(--bg3); border: 2px dashed var(--border);
+      border-radius: var(--r-sm); color: var(--text-2);
+      font-family: 'Manrope', sans-serif; font-size: .82rem; font-weight: 500;
+      cursor: pointer; transition: border-color .18s;
+    }
+    input[type="file"]:hover { border-color: var(--red); }
+
+    /* ────── ANIMATIONS ────── */
+    @keyframes fadeUp   { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+    @keyframes slideUp  { from { opacity:0; transform:translateY(20px) scale(0.97); } to { opacity:1; transform:none; } }
+    @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
+    @keyframes spin     { to { transform: rotate(360deg); } }
+    @keyframes pulse    { 0%,100%{opacity:1;} 50%{opacity:.35;} }
 
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
 
-    @media (max-width: 700px) {
+    /* ────── RESPONSIVE ────── */
+    @media (max-width: 750px) {
       .sidebar { display: none; }
       .main { margin-left: 0; padding: 1.5rem; }
       .login-visual { display: none; }
-      .login-wrap { max-width: 400px; }
+      .login-wrap { max-width: 420px; }
       .login-form-wrap { width: 100%; }
       .stats-row { grid-template-columns: 1fr 1fr; }
+      .form-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -419,11 +610,15 @@
 <div id="login-page">
   <div class="login-wrap">
     <div class="login-visual">
-      <div class="visual-avatar" id="login-avatar">
-        <img src="" id="login-avatar-img" alt="Robot" onerror="this.style.display='none'" />
-        <span id="login-avatar-emoji" style="display:none;">🤖</span>
+      <div class="visual-robot-wrap">
+        <div class="visual-avatar" id="login-avatar">
+          <img src="" id="login-avatar-img" alt="Robot"
+            onerror="this.style.display='none'; document.getElementById('login-avatar-emoji').style.display='flex'; this.parentNode.style.background='rgba(232,50,26,0.12)'" />
+          <span id="login-avatar-emoji" style="display:none; align-items:center; justify-content:center; width:100%; height:100%;">🤖</span>
+        </div>
       </div>
       <h2>Nexus</h2>
+      <div style="width:32px; height:3px; background:var(--red); border-radius:99px; margin:.6rem auto .65rem; opacity:.8;"></div>
       <p>Intelligent Robot Fleet<br>Management Platform</p>
       <div class="login-badges">
         <span class="badge">Multi-language</span>
@@ -432,42 +627,53 @@
       </div>
     </div>
     <div class="login-form-wrap">
+      <div class="login-logo-row">
+        <div class="login-logo-dot"></div>
+        <span class="login-logo-text">Nexus</span>
+      </div>
       <h3>Welcome back</h3>
       <p>Sign in to manage your robot fleet</p>
+
       <form onsubmit="handleLogin(event)">
         <div class="field">
           <label>Username</label>
-          <input type="text" id="username" placeholder="Enter username" required autocomplete="username" />
+          <input type="text" id="username" placeholder="Enter your username" required autocomplete="username" />
         </div>
         <div class="field">
           <label>Password</label>
-          <input type="password" id="password" placeholder="Enter password" required autocomplete="current-password" />
+          <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password" />
         </div>
-        <button type="submit" class="btn btn-primary btn-full" id="login-btn" style="margin-top:.75rem">Sign In</button>
+        <button type="submit" class="btn btn-primary btn-full" id="login-btn" style="margin-top:.5rem">
+          Sign In →
+        </button>
       </form>
-      <div style="margin: 1.5rem 0 0 0; text-align:center;">
-        <span style="color:var(--text-2); font-size:.8rem;">or</span>
-      </div>
-      <button onclick="window.location.href='/auth/google-login'" class="btn btn-ghost btn-full" style="margin-top:1rem; display:flex; align-items:center; justify-content:center; gap:.6rem;">
-        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" style="width:20px; height:20px; vertical-align:middle;"> Sign in with Google
+
+      <div class="or-divider"><span>OR</span></div>
+
+      <button onclick="window.location.href='/auth/google-login'" class="btn btn-google btn-full">
+        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" style="width:18px;height:18px;">
+        Continue with Google
       </button>
     </div>
   </div>
 </div>
 
 
+<!-- ════ APP ════ -->
 <div id="app">
   <nav class="sidebar">
     <div class="sb-brand">
       <div class="sb-logo-box" id="sb-logo-box">
         <img src="" id="sb-logo-img" alt="" onerror="this.style.display='none'; document.getElementById('sb-logo-emoji').style.display='block'" />
-        <span id="sb-logo-emoji" style="display:none; font-size:1.1rem;">🤖</span>
+        <span id="sb-logo-emoji" style="display:none; font-size:1.1rem; color:#fff;">🤖</span>
       </div>
       <div class="sb-brand-text">
-        <h1>Nexus</h1>
+        <h1>Nexus<span>.</span></h1>
         <p>Robot Platform</p>
       </div>
     </div>
+
+    <div class="nav-section-label">Navigation</div>
     <div class="nav-item active" data-tab="dashboard" onclick="switchTab('dashboard',this)">
       <span class="nav-icon">⊞</span> Dashboard
     </div>
@@ -475,72 +681,63 @@
       <span class="nav-icon">＋</span> Add Robot
     </div>
     <div class="nav-item admin-only" data-tab="firmware" onclick="switchTab('firmware',this)">
-      <span class="nav-icon">⬆️</span> Firmware
+      <span class="nav-icon">⬆</span> Firmware
     </div>
-        <!-- Firmware Upload (admin only) -->
-        <div class="tab-view" id="tab-firmware">
-          <div class="topbar">
-            <div>
-              <div class="page-title">Firmware Upload</div>
-              <div class="page-sub">Upload .bin file để cập nhật OTA cho robot</div>
-            </div>
-          </div>
-          <div class="form-card" style="max-width:440px">
-            <form id="firmware-form">
-              <div class="field">
-                <label>Firmware File (.bin)</label>
-                <input type="file" id="firmware-file" accept=".bin" required />
-              </div>
-              <div class="field">
-                <label>Version</label>
-                <input type="text" id="firmware-version" placeholder="e.g. 1.0.0" required />
-              </div>
-              <div class="field">
-                <label>Note</label>
-                <textarea id="firmware-note" rows="2" placeholder="Ghi chú (tùy chọn)"></textarea>
-              </div>
-              <button type="submit" class="btn btn-primary btn-full" id="firmware-upload-btn">⬆️ Upload Firmware</button>
-            </form>
-            <div id="firmware-upload-result" style="margin-top:1.2rem; display:none;"></div>
-          </div>
-        </div>
     <div class="nav-item viewer-only" data-tab="claim-robot" onclick="switchTab('claim-robot',this)">
       <span class="nav-icon">🔑</span> Claim Robot
     </div>
+
     <div class="sb-footer">
       <div class="user-row">
         <div class="user-av" id="user-av-initial">A</div>
         <div class="user-info">
           <div class="name" id="sb-username">admin</div>
-          <div class="role">Administrator</div>
+          <div class="role" id="sb-role-text">Administrator</div>
         </div>
       </div>
-      <button class="btn btn-ghost btn-full btn-sm" onclick="handleLogout()">Sign Out</button>
+      <button class="btn btn-ghost btn-full btn-sm" onclick="handleLogout()" style="font-size:.76rem;">
+        Sign Out
+      </button>
     </div>
   </nav>
 
   <main class="main">
-    <!-- Dashboard -->
+
+    <!-- ── Dashboard ── -->
     <div class="tab-view active" id="tab-dashboard">
       <div class="topbar">
         <div>
           <div class="page-title">Dashboard</div>
           <div class="page-sub">Overview of your robot fleet</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="switchTab('add-robot', document.querySelector('[data-tab=add-robot]'))">+ Add Robot</button>
+        <div class="topbar-actions">
+          <button class="btn btn-primary btn-sm admin-only"
+            onclick="switchTab('add-robot', document.querySelector('[data-tab=add-robot]'))">
+            + Add Robot
+          </button>
+        </div>
       </div>
       <div class="stats-row">
         <div class="stat-card">
-          <div class="stat-icon si-blue">🤖</div>
-          <div><div class="stat-label">Total Units</div><div class="stat-value" id="stat-total">0</div></div>
+          <div class="stat-icon si-red">🤖</div>
+          <div>
+            <div class="stat-label">Total Units</div>
+            <div class="stat-value" id="stat-total">0</div>
+          </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon si-green">⚡</div>
-          <div><div class="stat-label">Online</div><div class="stat-value" id="stat-online">0</div></div>
+          <div>
+            <div class="stat-label">Online</div>
+            <div class="stat-value" id="stat-online">0</div>
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon si-gold">🌐</div>
-          <div><div class="stat-label">Languages</div><div class="stat-value" id="stat-langs">0</div></div>
+          <div class="stat-icon si-amber">🌐</div>
+          <div>
+            <div class="stat-label">Languages</div>
+            <div class="stat-value" id="stat-langs">0</div>
+          </div>
         </div>
       </div>
       <div class="section-bar">
@@ -550,7 +747,7 @@
       <div id="robots-grid" class="robots-grid"></div>
     </div>
 
-    <!-- Add Robot -->
+    <!-- ── Add Robot ── -->
     <div class="tab-view" id="tab-add-robot">
       <div class="topbar">
         <div>
@@ -602,33 +799,72 @@
               </div>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary" id="create-btn">Create Robot</button>
+          <button type="submit" class="btn btn-primary" id="create-btn">Create Robot →</button>
         </form>
       </div>
     </div>
 
-    <!-- Claim Robot (viewer only) -->
+    <!-- ── Firmware (admin only) ── -->
+    <div class="tab-view" id="tab-firmware">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Firmware Upload</div>
+          <div class="page-sub">Upload .bin file để cập nhật OTA cho robot</div>
+        </div>
+      </div>
+      <div class="form-card" style="max-width:480px">
+        <form id="firmware-form">
+          <div class="field">
+            <label>Firmware File (.bin)</label>
+            <input type="file" id="firmware-file" accept=".bin" required />
+          </div>
+          <div class="field">
+            <label>Version</label>
+            <input type="text" id="firmware-version" placeholder="e.g. 1.0.0" required />
+          </div>
+          <div class="field">
+            <label>Note <span style="color:var(--text-3); text-transform:none; font-size:.7rem;">(optional)</span></label>
+            <textarea id="firmware-note" rows="2" placeholder="Ghi chú cập nhật..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" id="firmware-upload-btn">
+            ⬆ Upload Firmware
+          </button>
+        </form>
+        <div id="firmware-upload-result" style="margin-top:1.2rem; display:none;"></div>
+      </div>
+    </div>
+
+    <!-- ── Claim Robot (viewer only) ── -->
     <div class="tab-view" id="tab-claim-robot">
       <div class="topbar">
         <div>
-          <div class="page-title">🔑 Claim Robot</div>
+          <div class="page-title">Claim Robot</div>
           <div class="page-sub">Nhập mã OTP 6 số (được admin cấp) để thêm robot vào tài khoản của bạn</div>
         </div>
       </div>
-      <div class="form-card" style="max-width:440px">
+      <div class="form-card" style="max-width:420px">
         <form id="claim-form" onsubmit="handleClaimRobot(event)">
           <div class="field">
-            <label>OTP Code (6 digits)</label>
-            <input type="text" id="claim-otp" placeholder="123456" required maxlength="6" pattern="[0-9]{6}" inputmode="numeric"
-              style="font-size:1.6rem; letter-spacing:.5em; text-align:center; font-family:'Syne',sans-serif; font-weight:700;" />
+            <label>OTP Code</label>
+            <input type="text" id="claim-otp" placeholder="000000" required maxlength="6"
+              pattern="[0-9]{6}" inputmode="numeric"
+              style="font-family:'Fraunces',serif; font-size:2rem; font-weight:900;
+                     letter-spacing:.4em; text-align:center; padding:1rem;" />
+            <div style="font-size:.72rem; color:var(--text-3); margin-top:.4rem; font-weight:500;">
+              Mã OTP gồm 6 chữ số, có hiệu lực 10 phút.
+            </div>
           </div>
-          <button type="submit" class="btn btn-primary btn-full" id="claim-btn" style="margin-top:.5rem">🔑 Claim Robot</button>
+          <button type="submit" class="btn btn-primary btn-full" id="claim-btn" style="margin-top:.5rem">
+            🔑 Claim Robot
+          </button>
         </form>
         <div id="claim-result" style="margin-top:1.2rem; display:none;"></div>
       </div>
     </div>
+
   </main>
 </div>
+
 
 <!-- ════ EDIT MODAL ════ -->
 <div class="modal-overlay" id="edit-modal">
@@ -683,23 +919,20 @@
   </div>
 </div>
 
+<!-- ════ TOAST ════ -->
 <div class="toast" id="toast">
   <span id="toast-icon"></span>
   <span id="toast-msg"></span>
 </div>
 
 <script>
-  // ════════════════════════════════════════
-  // ★ THAY URL ẢNH ROBOT CỦA BẠN TẠI ĐÂY ★
   const ROBOT_IMAGE_URL = '/static/asset/Nexusbot.png';
   const API_ROBOTS = '/api/robots/';
-  // ════════════════════════════════════════
 
   let robots = [];
   let currentUser = null;
   let currentRole = null;
 
-  // ── Helpers ──
   function esc(s) {
     return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
@@ -709,12 +942,11 @@
     document.getElementById('toast-msg').textContent = msg;
     el.className = 'toast show' + (type ? ' '+type : '');
     clearTimeout(el._t);
-    el._t = setTimeout(() => el.classList.remove('show'), 3000);
+    el._t = setTimeout(() => el.classList.remove('show'), 3200);
   }
   function fmtDate(iso) {
     if (!iso) return '—';
-    const d = new Date(iso);
-    if (isNaN(d)) return '—';
+    const d = new Date(iso); if (isNaN(d)) return '—';
     const dd = String(d.getDate()).padStart(2,'0');
     const mm = String(d.getMonth()+1).padStart(2,'0');
     const yy = d.getFullYear();
@@ -724,8 +956,7 @@
   }
   function timeAgo(iso) {
     if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d)) return '';
+    const d = new Date(iso); if (isNaN(d)) return '';
     const sec = Math.floor((Date.now() - d.getTime()) / 1000);
     if (sec < 60) return 'vừa xong';
     if (sec < 3600) return Math.floor(sec/60) + ' phút trước';
@@ -733,68 +964,43 @@
     return Math.floor(sec/86400) + ' ngày trước';
   }
 
-  // Wrapper for fetch that handles 403 automatically
   async function apiFetch(url, options) {
     const res = await fetch(url, { credentials: 'include', ...options });
-    if (res.status === 401) {
-      // Session expired → reload
-      window.location.reload();
-      throw new Error('Unauthorized');
-    }
-    if (res.status === 403) {
-      toast('⛔', 'Bạn không có quyền thực hiện thao tác này', 'error');
-      throw new Error('Forbidden');
-    }
+    if (res.status === 401) { window.location.reload(); throw new Error('Unauthorized'); }
+    if (res.status === 403) { toast('⛔', 'Bạn không có quyền thực hiện thao tác này', 'error'); throw new Error('Forbidden'); }
     return res;
   }
 
-  // ── Load robots from API ──
   async function loadRobots() {
     try {
       const res = await apiFetch(API_ROBOTS);
-      if (res.ok) {
-        robots = await res.json();
-      } else {
-        robots = [];
-      }
-    } catch (e) {
-      robots = [];
-    }
+      robots = res.ok ? await res.json() : [];
+    } catch (e) { robots = []; }
     renderDashboard();
   }
 
   function applyRole(role) {
     currentRole = role;
-    document.body.classList.remove('role-admin', 'role-viewer');
-    document.body.classList.add('role-' + role);
-
-    const nameEl = document.getElementById('sb-username');
-    const roleEl = nameEl.closest('.user-info').querySelector('.role');
-    if (role === 'admin') {
-      roleEl.textContent = 'Administrator';
-      const existingBadge = nameEl.querySelector('.role-badge');
-      if (existingBadge) existingBadge.remove();
-      nameEl.insertAdjacentHTML('beforeend', '<span class="role-badge admin">Admin</span>');
-    } else {
-      roleEl.textContent = 'Viewer';
-      const existingBadge = nameEl.querySelector('.role-badge');
-      if (existingBadge) existingBadge.remove();
-      nameEl.insertAdjacentHTML('beforeend', '<span class="role-badge viewer">Viewer</span>');
-    }
-
-    const addBtnTopbar = document.querySelector('#tab-dashboard .topbar .btn-primary');
-    if (addBtnTopbar) addBtnTopbar.style.display = (role === 'admin') ? '' : 'none';
+    document.body.classList.remove('role-admin','role-viewer');
+    document.body.classList.add('role-'+role);
+    const roleText = document.getElementById('sb-role-text');
+    const nameEl   = document.getElementById('sb-username');
+    if (roleText) roleText.textContent = role === 'admin' ? 'Administrator' : 'Viewer';
+    const ex = nameEl.querySelector('.role-badge');
+    if (ex) ex.remove();
+    nameEl.insertAdjacentHTML('beforeend',
+      `<span class="role-badge ${role}">${role === 'admin' ? 'Admin' : 'Viewer'}</span>`);
+    const addBtn = document.querySelector('#tab-dashboard .topbar .btn-primary');
+    if (addBtn) addBtn.style.display = role === 'admin' ? '' : 'none';
   }
 
   function applyImages() {
     const loginImg = document.getElementById('login-avatar-img');
     loginImg.src = ROBOT_IMAGE_URL;
-    loginImg.onload = function() { document.getElementById('login-avatar-emoji').style.display = 'none'; };
-    loginImg.onerror = function() { this.style.display='none'; document.getElementById('login-avatar-emoji').style.display=''; };
-
+    loginImg.onerror = () => { loginImg.style.display='none'; document.getElementById('login-avatar-emoji').style.display=''; };
     const sbImg = document.getElementById('sb-logo-img');
     sbImg.src = ROBOT_IMAGE_URL;
-    sbImg.onerror = function() { this.style.display='none'; document.getElementById('sb-logo-emoji').style.display=''; };
+    sbImg.onerror = () => { sbImg.style.display='none'; document.getElementById('sb-logo-emoji').style.display=''; };
   }
   applyImages();
 
@@ -805,18 +1011,14 @@
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     applyRole(role);
-    loadRobots();  // fetch from API
+    loadRobots();
   }
 
-  // ── Check session via /auth/me ──
   (async function checkSession() {
     try {
       const res = await fetch('/auth/me', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        showApp(data.email, data.role || 'viewer');
-      }
-    } catch (e) { /* stay on login */ }
+      if (res.ok) { const d = await res.json(); showApp(d.email, d.role||'viewer'); }
+    } catch(e) {}
   })();
 
   async function handleLogin(e) {
@@ -824,32 +1026,22 @@
     const u = document.getElementById('username').value;
     const p = document.getElementById('password').value;
     const btn = document.getElementById('login-btn');
-    btn.innerHTML = '<span class="spinner"></span>';
-    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Signing in…'; btn.disabled = true;
     try {
       const res = await fetch('/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: u, password: p }),
-        credentials: 'include'
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p }), credentials: 'include'
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+        const err = await res.json().catch(()=>({}));
         toast('✕', err.detail || 'Login failed', 'error');
-        btn.innerHTML = 'Sign In'; btn.disabled = false;
-        return;
+        btn.innerHTML = 'Sign In →'; btn.disabled = false; return;
       }
       const meRes = await fetch('/auth/me', { credentials: 'include' });
-      if (meRes.ok) {
-        const data = await meRes.json();
-        showApp(data.email, data.role || 'admin');
-      } else {
-        showApp(u, 'admin');
-      }
-    } catch (err) {
-      toast('✕', 'Network error', 'error');
-    }
-    btn.innerHTML = 'Sign In'; btn.disabled = false;
+      if (meRes.ok) { const d = await meRes.json(); showApp(d.email, d.role||'admin'); }
+      else { showApp(u, 'admin'); }
+    } catch(err) { toast('✕', 'Network error', 'error'); }
+    btn.innerHTML = 'Sign In →'; btn.disabled = false;
   }
 
   async function handleLogout() {
@@ -861,17 +1053,16 @@
   function switchTab(tab, el) {
     document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('tab-' + tab).classList.add('active');
+    document.getElementById('tab-'+tab).classList.add('active');
     if (el) el.classList.add('active');
   }
 
-  // ── Render Dashboard (from API data) ──
   function renderDashboard() {
     const grid = document.getElementById('robots-grid');
     const onlineCount = robots.filter(r => r.is_online).length;
-    document.getElementById('stat-total').textContent = robots.length;
+    document.getElementById('stat-total').textContent  = robots.length;
     document.getElementById('stat-online').textContent = onlineCount;
-    document.getElementById('stat-langs').textContent = robots.length > 0 ? '—' : '0';
+    document.getElementById('stat-langs').textContent  = robots.length > 0 ? '—' : '0';
     document.getElementById('robot-count-badge').textContent = robots.length + ' unit' + (robots.length !== 1 ? 's' : '');
 
     if (!robots.length) {
@@ -886,18 +1077,19 @@
     grid.innerHTML = robots.map((r, i) => {
       const isOnline = r.is_online;
       const statusClass = isOnline ? 'status-online' : 'status-offline';
-      const statusText = isOnline ? 'Online' : 'Offline';
-      const createdAt = fmtDate(r.created_at);
-      const lastSeen = r.last_seen ? timeAgo(r.last_seen) : 'chưa kết nối';
-      const ownerText = r.owner_username ? esc(r.owner_username) : '<i style="color:var(--text-3)">chưa gán</i>';
+      const statusText  = isOnline ? 'Online' : 'Offline';
+      const createdAt   = fmtDate(r.created_at);
+      const lastSeen    = r.last_seen ? timeAgo(r.last_seen) : 'Chưa kết nối';
+      const ownerText   = r.owner_username ? esc(r.owner_username) : '<i style="color:var(--text-3)">Chưa gán</i>';
 
       return `
-      <div class="robot-card" style="animation-delay:${i * .06}s">
+      <div class="robot-card" style="animation-delay:${i*.07}s">
         <div class="card-cover">
+          <div class="card-cover-pattern"></div>
           <div class="card-avatar">
-            <img src="${ROBOT_IMAGE_URL}" alt="${esc(r.name || r.robot_id)}"
-              onerror="this.style.display='none'; this.parentNode.querySelector('.ca-emoji').style.display=''" />
-            <span class="ca-emoji" style="display:none; font-size:1.9rem;">🤖</span>
+            <img src="${ROBOT_IMAGE_URL}" alt="${esc(r.name||r.robot_id)}"
+              onerror="this.style.display='none'; this.parentNode.querySelector('.ca-emoji').style.display='flex'" />
+            <span class="ca-emoji" style="display:none; font-size:1.75rem; width:100%; height:100%; align-items:center; justify-content:center;">🤖</span>
           </div>
           <div class="card-status">
             <span class="status-chip ${statusClass}">
@@ -908,88 +1100,69 @@
         <div class="card-body">
           <div class="card-name">${esc(r.name || r.robot_id)}</div>
           <div class="card-mac">${esc(r.mac_address)}</div>
-          <div class="card-desc" style="min-height:auto;">
-            <div style="display:grid; grid-template-columns:auto 1fr; gap:.2rem .6rem; font-size:.72rem;">
-              <span style="color:var(--text-3)">ID:</span><span>${esc(r.robot_id)}</span>
-              <span style="color:var(--text-3)">Đăng ký:</span><span>📅 ${createdAt}</span>
-              <span style="color:var(--text-3)">Lần cuối:</span><span>${isOnline ? '🟢 đang online' : '⏱ ' + lastSeen}</span>
-              <span style="color:var(--text-3)">Owner:</span><span>👤 ${ownerText}</span>
-            </div>
-          </div>
-          <div class="card-tags">
-            <span class="tag">${isOnline ? '🟢 Online' : '🔴 Offline'}</span>
-            <span class="tag">📅 ${createdAt}</span>
+          <div class="card-info">
+            <span class="card-info-label">ID</span>
+            <span class="card-info-val" style="font-family:'JetBrains Mono',monospace; font-size:.68rem;">${esc(r.robot_id)}</span>
+            <span class="card-info-label">Đăng ký</span>
+            <span class="card-info-val">${createdAt}</span>
+            <span class="card-info-label">Lần cuối</span>
+            <span class="card-info-val">${isOnline ? '🟢 Đang online' : lastSeen}</span>
+            <span class="card-info-label">Owner</span>
+            <span class="card-info-val">${ownerText}</span>
           </div>
           <div class="card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openEdit(${i})" style="flex:1;">
+              ✏️ Edit
+            </button>
             ${currentRole === 'admin' ? `
-              <button class="btn btn-ghost btn-sm" onclick="openEdit(${i})" style="flex:1">✏️ Edit</button>
-              <button class="btn btn-ghost btn-sm admin-only" onclick="generateOTP('${esc(r.mac_address)}')" title="Tạo OTP">🔑</button>
-              <button class="btn btn-danger btn-sm" onclick="deleteRobot(${i})">🗑</button>
-            ` : `
-              <button class="btn btn-ghost btn-sm" onclick="openEdit(${i})" style="flex:1">✏️ Edit</button>
-            `}
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="generateOTP('${esc(r.mac_address)}')" title="Tạo OTP">🔑</button>
+              <button class="btn btn-danger btn-sm btn-icon" onclick="deleteRobot(${i})" title="Xóa robot">🗑</button>
+            ` : ''}
           </div>
         </div>
       </div>`;
     }).join('');
   }
 
-  // ── Create Robot (API) ──
   async function handleCreateRobot(e) {
     e.preventDefault();
     const btn = document.getElementById('create-btn');
-    btn.innerHTML = '<span class="spinner"></span> Creating...';
-    btn.disabled = true;
-    const name = document.getElementById('robot-name').value.trim();
-    const mac = document.getElementById('robot-mac').value.trim();
-    // Generate a robot_id from mac
+    btn.innerHTML = '<span class="spinner"></span> Creating…'; btn.disabled = true;
+    const name    = document.getElementById('robot-name').value.trim();
+    const mac     = document.getElementById('robot-mac').value.trim();
     const robotId = 'robot-' + mac.replace(/:/g,'').toLowerCase();
     try {
       const res = await apiFetch(API_ROBOTS, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mac_address: mac,
-          robot_id: robotId,
-          name: name || null,
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mac_address: mac, robot_id: robotId, name: name || null }),
       });
       if (res.ok) {
-        toast('✓', 'Robot created successfully.', 'success');
+        toast('✓', 'Robot created successfully!', 'success');
         document.getElementById('robot-form').reset();
         switchTab('dashboard', document.querySelector('[data-tab=dashboard]'));
         await loadRobots();
       } else {
-        const err = await res.json().catch(() => ({}));
+        const err = await res.json().catch(()=>({}));
         toast('✕', err.detail || 'Failed to create robot', 'error');
       }
-    } catch (err) {
-      if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error');
-    }
-    btn.innerHTML = 'Create Robot'; btn.disabled = false;
+    } catch(err) { if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error'); }
+    btn.innerHTML = 'Create Robot →'; btn.disabled = false;
   }
 
-  // ── Edit Robot ──
   async function openEdit(i) {
     const r = robots[i];
     document.getElementById('edit-id').value = r.mac_address;
     document.getElementById('edit-name').value = r.name || '';
     document.getElementById('edit-description').value = '';
-    // Fetch robot config from API
     try {
       const res = await apiFetch(API_ROBOTS + encodeURIComponent(r.mac_address) + '/config');
       if (res.ok) {
-        const config = await res.json();
-        document.getElementById('edit-system-prompt').value = config.system_prompt || '';
-        // Optionally set voice style/language if you want to support them
-      } else {
-        document.getElementById('edit-system-prompt').value = '';
-      }
-    } catch (e) {
-      document.getElementById('edit-system-prompt').value = '';
-    }
+        const cfg = await res.json();
+        document.getElementById('edit-system-prompt').value = cfg.system_prompt || '';
+      } else { document.getElementById('edit-system-prompt').value = ''; }
+    } catch(e) { document.getElementById('edit-system-prompt').value = ''; }
     document.getElementById('edit-voice-style').value = 'default';
-    document.getElementById('edit-language').value = 'vi';
+    document.getElementById('edit-language').value    = 'vi';
     document.getElementById('modal-title').textContent = 'Edit — ' + (r.name || r.robot_id);
     document.getElementById('edit-modal').classList.add('open');
   }
@@ -999,164 +1172,108 @@
 
   async function handleUpdateRobot(e) {
     e.preventDefault();
-    const mac = document.getElementById('edit-id').value;
-    const name = document.getElementById('edit-name').value.trim();
+    const mac         = document.getElementById('edit-id').value;
+    const name        = document.getElementById('edit-name').value.trim();
     const systemPrompt = document.getElementById('edit-system-prompt').value;
-    // Update robot name (basic info)
     try {
       const res = await apiFetch(API_ROBOTS + encodeURIComponent(mac), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name || null }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast('✕', err.detail || 'Update failed', 'error');
-        return;
-      }
-    } catch (err) {
-      if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error');
-      return;
-    }
-    // Update robot config (system prompt)
+      if (!res.ok) { const err = await res.json().catch(()=>({})); toast('✕', err.detail || 'Update failed', 'error'); return; }
+    } catch(err) { if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error'); return; }
     try {
       const res2 = await apiFetch(API_ROBOTS + encodeURIComponent(mac) + '/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ system_prompt: systemPrompt }),
       });
-      if (res2.ok) {
-        toast('✓', 'Changes saved.', 'success');
-        closeModal();
-        await loadRobots();
-      } else {
-        const err = await res2.json().catch(() => ({}));
-        toast('✕', err.detail || 'Update failed', 'error');
-      }
-    } catch (err) {
-      if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error');
-    }
+      if (res2.ok) { toast('✓', 'Changes saved!', 'success'); closeModal(); await loadRobots(); }
+      else { const err = await res2.json().catch(()=>({})); toast('✕', err.detail || 'Update failed', 'error'); }
+    } catch(err) { if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error'); }
   }
 
-  // ── Delete Robot (API) ──
   async function deleteRobot(i) {
     const r = robots[i];
     if (!confirm('Remove "' + (r.name || r.robot_id) + '" from fleet?')) return;
     try {
-      const res = await apiFetch(API_ROBOTS + encodeURIComponent(r.mac_address), {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        toast('✕', 'Robot removed.', '');
-        await loadRobots();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        toast('✕', err.detail || 'Delete failed', 'error');
-      }
-    } catch (err) {
-      if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error');
-    }
+      const res = await apiFetch(API_ROBOTS + encodeURIComponent(r.mac_address), { method: 'DELETE' });
+      if (res.ok) { toast('✓', 'Robot removed.', ''); await loadRobots(); }
+      else { const err = await res.json().catch(()=>({})); toast('✕', err.detail || 'Delete failed', 'error'); }
+    } catch(err) { if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error'); }
   }
 
-  // ── Generate OTP (admin) ──
   async function generateOTP(mac) {
     try {
-      const res = await apiFetch(API_ROBOTS + encodeURIComponent(mac) + '/otp', {
-        method: 'POST',
-      });
+      const res = await apiFetch(API_ROBOTS + encodeURIComponent(mac) + '/otp', { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         prompt('OTP cho robot ' + mac + ' (hết hạn 10 phút):', data.otp);
         toast('🔑', 'OTP: ' + data.otp, 'success');
-      } else {
-        toast('✕', 'Failed to generate OTP', 'error');
-      }
-    } catch (err) {
-      if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error');
-    }
+      } else { toast('✕', 'Failed to generate OTP', 'error'); }
+    } catch(err) { if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error'); }
   }
 
-  // ── Claim Robot (viewer) ──
   async function handleClaimRobot(e) {
     e.preventDefault();
     const btn = document.getElementById('claim-btn');
     const resultDiv = document.getElementById('claim-result');
-    btn.innerHTML = '<span class="spinner"></span> Claiming...';
-    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Claiming…'; btn.disabled = true;
     resultDiv.style.display = 'none';
     try {
       const res = await apiFetch('/api/robots/claim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          otp: document.getElementById('claim-otp').value.trim(),
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otp: document.getElementById('claim-otp').value.trim() }),
       });
       const data = await res.json();
       if (res.ok && data.ok) {
         toast('✓', data.message || 'Claim thành công!', 'success');
-        resultDiv.innerHTML = '<div style="color:var(--green); font-size:.85rem;">✅ ' + esc(data.message) + '</div>';
+        resultDiv.innerHTML = `<div style="color:var(--green); font-size:.83rem; font-weight:600; padding:.75rem; background:var(--green-d); border-radius:var(--r-xs); border:1px solid rgba(26,158,92,.2);">✅ ${esc(data.message)}</div>`;
         resultDiv.style.display = 'block';
         document.getElementById('claim-form').reset();
         await loadRobots();
       } else {
         const errMsg = data.detail || data.message || 'Claim thất bại';
         toast('✕', errMsg, 'error');
-        resultDiv.innerHTML = '<div style="color:var(--red); font-size:.85rem;">❌ ' + esc(errMsg) + '</div>';
+        resultDiv.innerHTML = `<div style="color:var(--red); font-size:.83rem; font-weight:600; padding:.75rem; background:var(--red-soft); border-radius:var(--r-xs); border:1px solid rgba(232,50,26,.15);">❌ ${esc(errMsg)}</div>`;
         resultDiv.style.display = 'block';
       }
-    } catch (err) {
-      if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error');
-    }
-    btn.innerHTML = '🔑 Claim Robot';
-    btn.disabled = false;
+    } catch(err) { if (err.message !== 'Forbidden') toast('✕', 'Network error', 'error'); }
+    btn.innerHTML = '🔑 Claim Robot'; btn.disabled = false;
   }
 
-  // Firmware upload handler
   const firmwareForm = document.getElementById('firmware-form');
   if (firmwareForm) {
     firmwareForm.addEventListener('submit', async function(e) {
       e.preventDefault();
       const fileInput = document.getElementById('firmware-file');
-      const versionInput = document.getElementById('firmware-version');
-      const noteInput = document.getElementById('firmware-note');
       const resultDiv = document.getElementById('firmware-upload-result');
-      const btn = document.getElementById('firmware-upload-btn');
+      const btn       = document.getElementById('firmware-upload-btn');
       if (!fileInput.files.length) return;
-      btn.innerHTML = '<span class="spinner"></span> Uploading...'; btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Uploading…'; btn.disabled = true;
       resultDiv.style.display = 'none';
       const formData = new FormData();
       formData.append('file', fileInput.files[0]);
-      formData.append('version', versionInput.value.trim());
-      formData.append('note', noteInput.value.trim());
+      formData.append('version', document.getElementById('firmware-version').value.trim());
+      formData.append('note',    document.getElementById('firmware-note').value.trim());
       try {
-        const res = await fetch('/api/OTA/upload', {
-          method: 'POST',
-          body: formData,
-          credentials: 'include'
-        });
+        const res  = await fetch('/api/OTA/upload', { method: 'POST', body: formData, credentials: 'include' });
         const data = await res.json();
         if (res.ok && data.success) {
           toast('✓', 'Upload thành công!', 'success');
-          resultDiv.innerHTML = '<div style="color:var(--green); font-size:.85rem;">✅ Đã upload: <a href="' + data.url + '" target="_blank">' + data.filename + '</a></div>';
+          resultDiv.innerHTML = `<div style="color:var(--green); font-size:.83rem; font-weight:600; padding:.75rem; background:var(--green-d); border-radius:var(--r-xs);">✅ Đã upload: <a href="${data.url}" target="_blank" style="color:var(--green);">${data.filename}</a></div>`;
           resultDiv.style.display = 'block';
           firmwareForm.reset();
         } else {
           toast('✕', data.detail || 'Upload thất bại', 'error');
-          resultDiv.innerHTML = '<div style="color:var(--red); font-size:.85rem;">❌ ' + (data.detail || 'Upload thất bại') + '</div>';
+          resultDiv.innerHTML = `<div style="color:var(--red); font-size:.83rem; font-weight:600; padding:.75rem; background:var(--red-soft); border-radius:var(--r-xs);">❌ ${data.detail || 'Upload thất bại'}</div>`;
           resultDiv.style.display = 'block';
         }
-      } catch (err) {
-        toast('✕', 'Network error', 'error');
-      }
-      btn.innerHTML = '⬆️ Upload Firmware'; btn.disabled = false;
+      } catch(err) { toast('✕', 'Network error', 'error'); }
+      btn.innerHTML = '⬆ Upload Firmware'; btn.disabled = false;
     });
   }
 
-  // Auto-refresh every 30 seconds
-  setInterval(() => {
-    if (currentUser) loadRobots();
-  }, 30000);
+  setInterval(() => { if (currentUser) loadRobots(); }, 30000);
 </script>
 </body>
 </html>
