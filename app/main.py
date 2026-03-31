@@ -2,7 +2,7 @@ import os
 import logging
 from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pathlib import Path
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -49,6 +49,11 @@ app.include_router(auth_google_router)
 app.include_router(auth_local_router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/")
+async def root_redirect():
+    return RedirectResponse(url="/dashboard/")
 
 
 @app.get("/dashboard/", response_class=HTMLResponse)
