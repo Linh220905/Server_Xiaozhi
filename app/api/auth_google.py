@@ -89,6 +89,7 @@ async def google_auth(request: Request):
         samesite="none",   # allow cross-site cookie for HTTPS
         secure=True,        # required for SameSite=None on HTTPS
         path="/",
+        domain="nexus.tanlinh.dev",  # đảm bảo cookie lưu đúng domain
     )
     return response
 

@@ -26,6 +26,9 @@ app = FastAPI(
     title="Nexus ESP32 Server",
     version="1.0.0",
     description="Custom server cho nexus-esp32. WebSocket + REST API.",
+    docs_url=None,         # Ẩn /docs
+    redoc_url=None,        # Ẩn /redoc
+    openapi_url=None,      # Ẩn /openapi.json
 )
 
 app.add_middleware(
