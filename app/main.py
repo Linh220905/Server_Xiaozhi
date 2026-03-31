@@ -31,10 +31,7 @@ app = FastAPI(
     openapi_url=None,      # Ẩn /openapi.json
 )
 
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv("SESSION_SECRET", "your-very-secret-session-key")
-)
+## Removed SessionMiddleware to prevent double Set-Cookie (session=null) and avoid overwriting custom session cookie
 
 app.include_router(api_router)
 app.include_router(v1_router)
