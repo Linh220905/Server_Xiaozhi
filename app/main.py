@@ -61,6 +61,17 @@ async def dashboard_panel():
         return HTMLResponse(content="<h1>Dashboard not found</h1>")
 
 
+@app.get("/dashboard/", response_class=HTMLResponse)
+async def dashboard_panel_dashboard():
+    dashboard_html_path = Path("static/admin/index.html")
+    if dashboard_html_path.exists():
+        with open(dashboard_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return HTMLResponse(content=content)
+    else:
+        return HTMLResponse(content="<h1>Dashboard not found</h1>")
+
+
 @app.websocket("/")
 async def websocket_endpoint(ws: WebSocket):
     await handle_client(ws)
