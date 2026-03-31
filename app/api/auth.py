@@ -21,18 +21,6 @@ async def register(user_data: UserCreate):
         )
     return {"message": "User created successfully"}
 
-def set_auth_cookie(response, token: str):
-    response.set_cookie(
-        key="nexus_session",
-        value=token,
-        httponly=True,
-        max_age=86400,
-        samesite="none",     
-        secure=True,       
-        domain=".tanlinh.dev",  
-        path="/",
-    )
-
 @router.post("/login", response_model=Token)
 async def login(
     request: Request,

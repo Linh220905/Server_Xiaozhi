@@ -89,7 +89,7 @@ async def google_auth(request: Request):
         status_code=302
     )
 
-    # 🔥 dùng chung
+   
     set_auth_cookie(response, session_token)
 
     return response

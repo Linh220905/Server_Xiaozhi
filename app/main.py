@@ -1,11 +1,9 @@
 import os
-from starlette.middleware.sessions import SessionMiddleware
 import logging
 from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from pathlib import Path
-import os
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import config
@@ -33,11 +31,14 @@ app = FastAPI(
     openapi_url=None,      # Ẩn /openapi.json
 )
 
-# Thêm lại SessionMiddleware với tên cookie khác để tránh xung đột với nexus_session
+# SessionMiddleware cho OAuth state (authlib cần session để lưu state/nonce)
+# https_only=True + same_site="none" để cookie hoạt động đúng trên HTTPS với Google redirect
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", "your-very-secret-session-key"),
-    session_cookie="session_backend"  # Đổi tên cookie để tránh xung đột với nexus_session
+    session_cookie="session_backend",
+    https_only=True,
+    same_site="none",
 )
 
 app.include_router(api_router)
