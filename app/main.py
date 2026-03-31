@@ -1,3 +1,5 @@
+import os
+from starlette.middleware.sessions import SessionMiddleware
 import logging
 from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
@@ -31,7 +33,12 @@ app = FastAPI(
     openapi_url=None,      # Ẩn /openapi.json
 )
 
-## Removed SessionMiddleware to prevent double Set-Cookie (session=null) and avoid overwriting custom session cookie
+# Thêm lại SessionMiddleware với tên cookie khác để tránh xung đột với nexus_session
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET", "your-very-secret-session-key"),
+    session_cookie="session_backend"  # Đổi tên cookie để tránh xung đột với nexus_session
+)
 
 app.include_router(api_router)
 app.include_router(v1_router)
