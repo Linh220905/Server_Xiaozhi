@@ -86,7 +86,8 @@ async def google_auth(request: Request):
         value=session_token,
         httponly=True,
         max_age=86400,
-        samesite="lax",
+        samesite="none",   # allow cross-site cookie for HTTPS
+        secure=True,        # required for SameSite=None on HTTPS
         path="/",
     )
     return response
