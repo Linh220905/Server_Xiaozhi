@@ -112,21 +112,16 @@ async def logout():
     response = RedirectResponse(url="/", status_code=302)
     # Phải set cookie với CÙNG attributes (domain, path, secure, samesite, httponly)
     # như lúc tạo, nhưng value="" và max_age=0 để browser thực sự xóa
-    response.set_cookie(
+    response.delete_cookie(
         key="nexus_session",
-        value="",
-        max_age=0,
         path="/",
         domain=".tanlinh.dev",
         secure=True,
         httponly=True,
         samesite="none",
     )
-    # Xóa thêm nexus_session không có domain (phòng trường hợp set không có domain)
-    response.set_cookie(
+    response.delete_cookie(
         key="nexus_session",
-        value="",
-        max_age=0,
         path="/",
         secure=True,
         httponly=True,

@@ -15,10 +15,9 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 @router.get("/logout")
 async def logout():
     response = RedirectResponse(url="/", status_code=302)
-    response.set_cookie(
+    # Xóa cookie đúng domain
+    response.delete_cookie(
         key="nexus_session",
-        value="",
-        max_age=0,
         path="/",
         domain=".tanlinh.dev",
         secure=True,
@@ -26,10 +25,8 @@ async def logout():
         samesite="none",
     )
     # Xóa thêm trường hợp không domain (phòng khi cookie cũ không có domain)
-    response.set_cookie(
+    response.delete_cookie(
         key="nexus_session",
-        value="",
-        max_age=0,
         path="/",
         secure=True,
         httponly=True,
