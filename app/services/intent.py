@@ -7,7 +7,7 @@ Phân loại:
 
 from __future__ import annotations
 
-import logging
+from app.server_logging import get_logger
 import re
 from dataclasses import dataclass
 from typing import Optional
@@ -16,7 +16,7 @@ import datetime
 from app.services.llm import LLMService
 from app.prompt_store import INTENT_PROMPT
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(slots=True)

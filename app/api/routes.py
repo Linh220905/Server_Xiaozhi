@@ -1,4 +1,4 @@
-import logging
+from app.server_logging import get_logger
 from fastapi import APIRouter, Depends
 
 from app.models import HealthResponse, SessionInfo
@@ -12,7 +12,7 @@ from .auth_google import router as auth_google_router, require_viewer
 from .OTA.firmware import router as ota_firmware_router
 from .admin import firmware_router as admin_firmware_router
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["API"])
 v1_router = APIRouter(prefix="/api/v1", tags=["API v1"])

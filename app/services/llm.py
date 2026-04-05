@@ -2,7 +2,7 @@
 """
 
 import json
-import logging
+from app.server_logging import get_logger
 import re
 from typing import Any, AsyncGenerator
 
@@ -10,7 +10,7 @@ import openai
 
 from app.config import LLMConfig, LLMProviderConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class LLMService:

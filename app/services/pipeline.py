@@ -9,7 +9,7 @@ Dùng asyncio.Queue để pre-fetch TTS:
 
 import asyncio
 import json
-import logging
+from app.server_logging import get_logger
 import re
 from typing import Callable, Awaitable
 
@@ -19,7 +19,7 @@ from app.services.stt import STTService
 from app.services.llm import LLMService
 from app.services.tts import TTSService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 SENTENCE_ENDINGS = frozenset(".!?;,\n")
 

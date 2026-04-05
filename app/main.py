@@ -1,5 +1,5 @@
 import os
-import logging
+from app.server_logging import get_logger
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -16,11 +16,7 @@ from app.websocket.handler import handle_client
 from app.mcp.alarm_scheduler import start_scheduler
 from app.database.connection import init_database
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 app = FastAPI(
     title="Nexus ESP32 Server",

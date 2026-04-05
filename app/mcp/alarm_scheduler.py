@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
+from app.server_logging import get_logger
 import os
 from datetime import datetime
 from typing import Any
@@ -19,7 +19,7 @@ from typing import Any
 from app.websocket import handler as ws_handler
 from app.websocket.session import get_all_sessions
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Default ringtone path (generated if missing)
 DEFAULT_RINGTONE = os.path.join(os.path.dirname(__file__), "BaoThuc.mp3")

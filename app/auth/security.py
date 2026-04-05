@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import jwt, JWTError
 import bcrypt
-import logging
+from app.server_logging import get_logger
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -23,7 +23,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 security = HTTPBearer()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

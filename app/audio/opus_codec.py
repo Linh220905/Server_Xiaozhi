@@ -5,12 +5,12 @@ ESP32 gửi: Opus 16kHz mono 60ms/frame
 Server trả: Opus 24kHz mono 60ms/frame
 """
 
-import logging
+from app.server_logging import get_logger
 from app.config import AudioInputConfig, AudioOutputConfig
 
 import opuslib
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OpusDecoder:

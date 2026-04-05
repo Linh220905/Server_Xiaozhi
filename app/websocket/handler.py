@@ -9,7 +9,7 @@ import json
 import struct
 import time
 import asyncio
-import logging
+from app.server_logging import get_logger
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -21,7 +21,7 @@ from app.robots.crud import get_robot_config, get_robot_by_mac, create_robot, up
 from app.database.chat_history import save_chat_session
 from app.robots.models import RobotCreate
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 mcp_tools = MCPToolRegistry()
 _session_ws: dict[str, WebSocket] = {}
 _session_send_locks: dict[str, asyncio.Lock] = {}

@@ -18,7 +18,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import html
-import logging
+from app.server_logging import get_logger
 import re
 import shutil
 import time
@@ -29,7 +29,7 @@ import aiohttp
 from app.audio.opus_codec import OpusEncoder
 from app.config import AudioOutputConfig, TTSConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 VI_CHAR_RE = re.compile(

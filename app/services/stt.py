@@ -1,5 +1,5 @@
 import io
-import logging
+from app.server_logging import get_logger
 import re
 from typing import Optional
 
@@ -7,7 +7,7 @@ import openai
 
 from app.config import STTConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 MIN_PCM_BYTES = 16000

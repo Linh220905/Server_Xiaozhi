@@ -8,7 +8,7 @@ Quản lý: audio buffer, chat history, trạng thái.
 import uuid
 import struct
 import math
-import logging
+from app.server_logging import get_logger
 from datetime import datetime
 
 from app.config import AppConfig
@@ -20,7 +20,7 @@ from app.services.llm import LLMService
 from app.services.tts import TTSService
 from app.services.pipeline import ConversationPipeline
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Session:

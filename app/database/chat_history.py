@@ -5,12 +5,12 @@ Không ghi đè giữa các session — mỗi robot có thể có nhiều sessio
 Trong cùng 1 session thì UPDATE messages (vì handler gọi save sau mỗi lượt hội thoại).
 """
 import json
-import logging
+from app.server_logging import get_logger
 from datetime import datetime
 
 from app.database.connection import get_db_connection
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def save_chat_session(robot_mac: str, session_id: str, messages: list[dict]) -> None:

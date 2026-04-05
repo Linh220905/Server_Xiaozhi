@@ -1,10 +1,10 @@
-import logging
+from app.server_logging import get_logger
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.robots.crud import get_robot_by_mac
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 router = APIRouter(tags=["ota-activate"])
 
 

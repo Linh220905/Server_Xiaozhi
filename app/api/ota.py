@@ -1,4 +1,4 @@
-import logging
+from app.server_logging import get_logger
 import uuid
 from datetime import datetime, timezone
 
@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request
 from app.robots.crud import get_robot_by_mac, create_robot, generate_otp
 from app.robots.models import RobotCreate
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 router = APIRouter(tags=["ota"])
 
 

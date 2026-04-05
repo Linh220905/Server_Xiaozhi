@@ -6,7 +6,7 @@ Hiện tại tập trung vào tool tìm nhạc Việt.
 from __future__ import annotations
 
 import json
-import logging
+from app.server_logging import get_logger
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlencode
@@ -15,7 +15,7 @@ import os
 import uuid
 from datetime import datetime, date, time, timedelta
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(slots=True)

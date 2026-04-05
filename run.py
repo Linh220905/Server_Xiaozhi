@@ -1,9 +1,11 @@
 import argparse
 import uvicorn
 from app.config import config
+from app.server_logging import setup_logging
 
 
 def main():
+    setup_logging()
     parser = argparse.ArgumentParser(description="Nexus ESP32 Server")
     parser.add_argument("--host", default=config.server.host, help="Bind host")
     parser.add_argument("--port", type=int, default=config.server.port, help="Bind port")
@@ -16,6 +18,7 @@ def main():
         port=args.port,
         reload=args.reload,
         log_level="info",
+        log_config=None,
     )
 
 

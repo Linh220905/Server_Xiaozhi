@@ -6,7 +6,7 @@ Streaming per-chunk để giảm giật giữa các câu.
 """
 
 import asyncio
-import logging
+from app.server_logging import get_logger
 import math
 import shutil
 import time
@@ -22,7 +22,7 @@ from scipy.signal import resample_poly
 from app.config import AudioOutputConfig, TTSConfig
 from app.audio.opus_codec import OpusEncoder
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TTSService:
