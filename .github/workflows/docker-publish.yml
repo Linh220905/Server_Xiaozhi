@@ -80,7 +80,9 @@ jobs:
           script: |
             set -e
 
-            IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:latest"
+            IMAGE_REPO_RAW="${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}"
+            IMAGE_REPO="$(printf '%s' "$IMAGE_REPO_RAW" | tr '[:upper:]' '[:lower:]')"
+            IMAGE="$IMAGE_REPO:latest"
             CONTAINER="${{ vars.DEPLOY_CONTAINER_NAME }}"
             ENV_FILE="${{ vars.DEPLOY_ENV_FILE }}"
             DATA_DIR="${{ vars.DEPLOY_DATA_DIR }}"
