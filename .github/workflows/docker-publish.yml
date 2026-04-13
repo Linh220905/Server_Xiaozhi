@@ -78,16 +78,34 @@ jobs:
           port: ${{ secrets.SERVER_PORT || '22' }}
           script_stop: true
           script: |
-            set -e
+            set -euo pipefail
 
-            IMAGE_REPO_RAW="${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}"
-            IMAGE_REPO="$(printf '%s' "$IMAGE_REPO_RAW" | tr '[:upper:]' '[:lower:]')"
+            DOCKER_USER_RAW="${{ secrets.DOCKER_USERNAME }}"
+            DOCKER_IMAGE_RAW="${{ secrets.DOCKER_IMAGE_NAME }}"
+            DOCKER_USER="$(printf '%s' "$DOCKER_USER_RAW" | tr -d '\r\n' | xargs)"
+            DOCKER_IMAGE="$(printf '%s' "$DOCKER_IMAGE_RAW" | tr -d '\r\n' | xargs)"
+
+            if [ -z "$DOCKER_IMAGE" ]; then
+              echo "DOCKER_IMAGE_NAME is empty" >&2
+              exit 1
+            fi
+
+            # Allow either:
+            # - DOCKER_IMAGE_NAME=nexus-server  (prepend username)
+            # - DOCKER_IMAGE_NAME=dtl2309/nexus-server (use as-is)
+            if printf '%s' "$DOCKER_IMAGE" | grep -q '/'; then
+              IMAGE_REPO_RAW="$DOCKER_IMAGE"
+            else
+              IMAGE_REPO_RAW="$DOCKER_USER/$DOCKER_IMAGE"
+            fi
+
+            IMAGE_REPO="$(printf '%s' "$IMAGE_REPO_RAW" | tr '[:upper:]' '[:lower:]' | xargs)"
             IMAGE="$IMAGE_REPO:latest"
-            CONTAINER="${{ vars.DEPLOY_CONTAINER_NAME }}"
-            ENV_FILE="${{ vars.DEPLOY_ENV_FILE }}"
-            DATA_DIR="${{ vars.DEPLOY_DATA_DIR }}"
-            LOG_DIR="${{ vars.DEPLOY_LOG_DIR }}"
-            PORT_MAP="${{ vars.DEPLOY_PORT_MAP }}"
+            CONTAINER="$(printf '%s' '${{ vars.DEPLOY_CONTAINER_NAME }}' | tr -d '\r\n' | xargs)"
+            ENV_FILE="$(printf '%s' '${{ vars.DEPLOY_ENV_FILE }}' | tr -d '\r\n' | xargs)"
+            DATA_DIR="$(printf '%s' '${{ vars.DEPLOY_DATA_DIR }}' | tr -d '\r\n' | xargs)"
+            LOG_DIR="$(printf '%s' '${{ vars.DEPLOY_LOG_DIR }}' | tr -d '\r\n' | xargs)"
+            PORT_MAP="$(printf '%s' '${{ vars.DEPLOY_PORT_MAP }}' | tr -d '\r\n' | xargs)"
 
             if [ -z "$CONTAINER" ]; then
               CONTAINER="custom-server"
@@ -100,16 +118,21 @@ jobs:
             docker stop "$CONTAINER" || true
             docker rm "$CONTAINER" || true
 
-            RUN_CMD="docker run -d --name $CONTAINER -p $PORT_MAP"
-            if [ -n "$ENV_FILE" ]; then
-              RUN_CMD="$RUN_CMD --env-file $ENV_FILE"
+            if [ -n "$ENV_FILE" ] && [ -n "$DATA_DIR" ] && [ -n "$LOG_DIR" ]; then
+              docker run -d --name "$CONTAINER" -p "$PORT_MAP" --env-file "$ENV_FILE" -v "$DATA_DIR:/app/app/data" -v "$LOG_DIR:/app/logs" "$IMAGE"
+            elif [ -n "$ENV_FILE" ] && [ -n "$DATA_DIR" ]; then
+              docker run -d --name "$CONTAINER" -p "$PORT_MAP" --env-file "$ENV_FILE" -v "$DATA_DIR:/app/app/data" "$IMAGE"
+            elif [ -n "$ENV_FILE" ] && [ -n "$LOG_DIR" ]; then
+              docker run -d --name "$CONTAINER" -p "$PORT_MAP" --env-file "$ENV_FILE" -v "$LOG_DIR:/app/logs" "$IMAGE"
+            elif [ -n "$DATA_DIR" ] && [ -n "$LOG_DIR" ]; then
+              docker run -d --name "$CONTAINER" -p "$PORT_MAP" -v "$DATA_DIR:/app/app/data" -v "$LOG_DIR:/app/logs" "$IMAGE"
+            elif [ -n "$ENV_FILE" ]; then
+              docker run -d --name "$CONTAINER" -p "$PORT_MAP" --env-file "$ENV_FILE" "$IMAGE"
+            elif [ -n "$DATA_DIR" ]; then
+              docker run -d --name "$CONTAINER" -p "$PORT_MAP" -v "$DATA_DIR:/app/app/data" "$IMAGE"
+            elif [ -n "$LOG_DIR" ]; then
+              docker run -d --name "$CONTAINER" -p "$PORT_MAP" -v "$LOG_DIR:/app/logs" "$IMAGE"
+            else
+              docker run -d --name "$CONTAINER" -p "$PORT_MAP" "$IMAGE"
             fi
-            if [ -n "$DATA_DIR" ]; then
-              RUN_CMD="$RUN_CMD -v $DATA_DIR:/app/app/data"
-            fi
-            if [ -n "$LOG_DIR" ]; then
-              RUN_CMD="$RUN_CMD -v $LOG_DIR:/app/logs"
-            fi
-
-            eval "$RUN_CMD $IMAGE"
             docker image prune -f
