@@ -52,12 +52,10 @@ jobs:
         shell: bash
         run: |
           set -e
-          # Prefer base64-encoded key (most stable in GitHub Secrets), fallback to raw text secret.
           SSH_KEY_CONTENT=""
           if [ -n "${{ secrets.SERVER_SSH_KEY_B64 }}" ]; then
             SSH_KEY_CONTENT="$(printf '%s' '${{ secrets.SERVER_SSH_KEY_B64 }}' | base64 -d | sed 's/\r$//')"
           else
-            # Support secrets pasted either as real multiline PEM or single-line with \n escapes.
             SSH_KEY_CONTENT="$(printf '%b' '${{ secrets.SERVER_SSH_KEY }}' | sed 's/\r$//')"
           fi
           if [ -z "$SSH_KEY_CONTENT" ]; then
@@ -75,8 +73,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ steps.prep_ssh.outputs.ssh_key }}
           passphrase: ${{ secrets.SERVER_SSH_PASSPHRASE }}
-          port: ${{ secrets.SERVER_PORT || '22' }}
-          script_stop: true
+          port: ${{ secrets.SERVER_PORT != '' && secrets.SERVER_PORT || '22' }}
           script: |
             set -euo pipefail
 
@@ -90,9 +87,6 @@ jobs:
               exit 1
             fi
 
-            # Allow either:
-            # - DOCKER_IMAGE_NAME=nexus-server  (prepend username)
-            # - DOCKER_IMAGE_NAME=dtl2309/nexus-server (use as-is)
             if printf '%s' "$DOCKER_IMAGE" | grep -q '/'; then
               IMAGE_REPO_RAW="$DOCKER_IMAGE"
             else
