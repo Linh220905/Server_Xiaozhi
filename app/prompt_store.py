@@ -102,7 +102,7 @@ Schema bắt buộc:
 {
     "intent": "learning_vocab|learning_conversation|learning_topic|other",
     "learning_mode": "vocabulary|conversation|",
-    "topic_id": "travel|work|food|health|technology|education|greet|airport|hotel|restaurant|interview|shopping|",
+    "topic_id": "travel|work|food|health|technology|education|family|greet|airport|hotel|restaurant|interview|shopping|",
     "topic_name": ""
 }
 
@@ -119,6 +119,7 @@ Map topic_id:
 - y tế/sức khỏe/bệnh viện -> health
 - công nghệ/công nghiệp/kỹ thuật/IT -> technology
 - giáo dục/học tập/trường học -> education
+- gia đình/ba mẹ/cha mẹ/người thân -> family
 - chào hỏi/làm quen -> greet
 - sân bay hội thoại -> airport
 - khách sạn hội thoại -> hotel

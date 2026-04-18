@@ -38,6 +38,8 @@
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html { font-size: 21px; }
+
     body {
       font-family: 'Manrope', sans-serif;
       background: var(--bg);
@@ -760,10 +762,12 @@
     ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
 
     @media (max-width: 900px) {
+      html { font-size: 19px; }
       .features-grid, .steps-grid { grid-template-columns: 1fr 1fr; }
       .stats-row { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 700px) {
+      html { font-size: 18px; }
       .sidebar { display: none; }
       .main { margin-left: 0; padding: 1.5rem; }
       .land-nav { padding: 1rem 1.5rem; }

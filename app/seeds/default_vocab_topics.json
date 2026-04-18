@@ -88,5 +88,20 @@
       {"word": "Scholarship", "meaning": "Học bổng"},
       {"word": "Tuition", "meaning": "Học phí"}
     ]
+  },
+  {
+    "id": "family",
+    "icon": "👨‍👩‍👧‍👦",
+    "name": "Gia đình",
+    "count": 5,
+    "level": "beginner",
+    "category": "beginner",
+    "words": [
+      {"word": "Family", "meaning": "Gia đình"},
+      {"word": "Father", "meaning": "Bố"},
+      {"word": "Mother", "meaning": "Mẹ"},
+      {"word": "Brother", "meaning": "Anh/em trai"},
+      {"word": "Sister", "meaning": "Chị/em gái"}
+    ]
   }
 ]
