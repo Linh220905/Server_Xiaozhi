@@ -214,34 +214,93 @@ async def learning_flashcard(
                 size -= 2
             return _pick_flashcard_font(min_size, bold=bold)
 
+        def _wrap_text_to_width(text: str, font_obj, max_w: int, max_lines: int = 2) -> list[str]:
+            raw = (text or "").strip()
+            if not raw:
+                return [""]
+
+            words = raw.split()
+            lines: list[str] = []
+            cur = ""
+
+            for token in words:
+                candidate = token if not cur else f"{cur} {token}"
+                bbox = draw.textbbox((0, 0), candidate, font=font_obj)
+                tw = max(1, bbox[2] - bbox[0])
+                if tw <= max_w:
+                    cur = candidate
+                    continue
+
+                if cur:
+                    lines.append(cur)
+                    cur = token
+                else:
+                    # Single long token; hard cut to keep visibility.
+                    chunk = ""
+                    for ch in token:
+                        c2 = chunk + ch
+                        cb = draw.textbbox((0, 0), c2, font=font_obj)
+                        if (cb[2] - cb[0]) <= max_w:
+                            chunk = c2
+                        else:
+                            break
+                    lines.append(chunk or token)
+                    cur = token[len(chunk):].strip()
+
+                if len(lines) >= max_lines:
+                    break
+
+            if len(lines) < max_lines and cur:
+                lines.append(cur)
+
+            if len(lines) > max_lines:
+                lines = lines[:max_lines]
+
+            return lines or [raw]
+
         top_h = max(1, split_y - panel_top - panel_margin)
         bottom_h = max(1, panel_bottom - split_y - panel_margin)
         usable_w = max(1, panel_right - panel_left - panel_margin * 2)
 
         word_font = _fit_font(
             word_text,
-            prefer=max(42, int(h * 0.24)),
-            min_size=max(24, int(h * 0.12)),
+            prefer=max(52, int(h * 0.30)),
+            min_size=max(30, int(h * 0.16)),
             max_w=usable_w,
-            max_h=int(top_h * 0.78),
+            max_h=int(top_h * 0.86),
             bold=True,
         )
-        meaning_font = _fit_font(
-            safe_meaning,
-            prefer=max(30, int(h * 0.16)),
-            min_size=max(18, int(h * 0.09)),
-            max_w=usable_w,
-            max_h=int(bottom_h * 0.68),
-            bold=True,
-        )
+
+        # Fit meaning as 1-2 lines for better readability on small displays.
+        meaning_font = None
+        meaning_lines: list[str] = [safe_meaning]
+        for size in range(max(44, int(h * 0.22)), max(20, int(h * 0.10)) - 1, -2):
+            f = _pick_flashcard_font(size, bold=True)
+            lines = _wrap_text_to_width(safe_meaning, f, usable_w, max_lines=2)
+            line_heights = []
+            line_widths = []
+            for ln in lines:
+                bb = draw.textbbox((0, 0), ln, font=f)
+                line_heights.append(max(1, bb[3] - bb[1]))
+                line_widths.append(max(1, bb[2] - bb[0]))
+            block_h = sum(line_heights) + (max(6, h // 40) if len(lines) > 1 else 0)
+            if line_widths and max(line_widths) <= usable_w and block_h <= int(bottom_h * 0.82):
+                meaning_font = f
+                meaning_lines = lines
+                break
+        if meaning_font is None:
+            meaning_font = _pick_flashcard_font(max(20, int(h * 0.10)), bold=True)
+            meaning_lines = _wrap_text_to_width(safe_meaning, meaning_font, usable_w, max_lines=2)
 
         word_bbox = draw.textbbox((0, 0), word_text, font=word_font)
         word_h = max(1, word_bbox[3] - word_bbox[1])
         y_word = panel_top + max(panel_margin, (top_h - word_h) // 2)
 
-        meaning_bbox = draw.textbbox((0, 0), safe_meaning, font=meaning_font)
-        meaning_h = max(1, meaning_bbox[3] - meaning_bbox[1])
-        y_meaning = split_y + max(panel_margin // 2, (bottom_h - meaning_h) // 2)
+        line_gap = max(6, h // 40)
+        line_metrics = [draw.textbbox((0, 0), ln, font=meaning_font) for ln in meaning_lines]
+        line_heights = [max(1, bb[3] - bb[1]) for bb in line_metrics]
+        block_h = sum(line_heights) + (line_gap if len(meaning_lines) > 1 else 0)
+        y_meaning = split_y + max(panel_margin // 2, (bottom_h - block_h) // 2)
 
         draw.text(
             (_center_x(word_text, word_font), y_word),
@@ -249,12 +308,15 @@ async def learning_flashcard(
             fill="#111827",
             font=word_font,
         )
-        draw.text(
-            (_center_x(safe_meaning, meaning_font), y_meaning),
-            safe_meaning,
-            fill="#0f172a",
-            font=meaning_font,
-        )
+        cursor_y = y_meaning
+        for i, ln in enumerate(meaning_lines):
+            draw.text(
+                (_center_x(ln, meaning_font), cursor_y),
+                ln,
+                fill="#0f172a",
+                font=meaning_font,
+            )
+            cursor_y += line_heights[i] + (line_gap if i < len(meaning_lines) - 1 else 0)
 
         output = BytesIO()
         if (fmt or "jpg").lower() == "png":

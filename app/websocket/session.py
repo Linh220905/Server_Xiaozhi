@@ -61,6 +61,8 @@ class Session:
             "topic_id": None,
             "next_index": "0",
             "finished": "0",
+            "locked": "0",
+            "lock_target_index": "0",
         }
 
         self._max_history = config.max_chat_history
