@@ -118,46 +118,55 @@ class ConversationPipeline:
                     await on_tts_stop()
                 return (user_text, reply_text)
 
-            locked_mode = str(learning_context.get("mode") or "").strip()
-            locked_topic_id = str(learning_context.get("topic_id") or "").strip()
+            # Không phải câu follow-up học tập thì mở lock để tránh tự động dạy nhầm.
+            if not self._looks_like_learning_followup(user_text, learning_context):
+                learning_context["locked"] = "0"
+                learning_context["mode"] = None
+                learning_context["topic_id"] = None
+                learning_context["next_index"] = "0"
+                learning_context["finished"] = "0"
+                learning_context["lock_target_index"] = "0"
+            else:
+                locked_mode = str(learning_context.get("mode") or "").strip()
+                locked_topic_id = str(learning_context.get("topic_id") or "").strip()
 
-            if locked_mode == "vocabulary" and locked_topic_id:
-                selected_topic = get_topic_by_id("vocabulary", locked_topic_id)
-                if selected_topic:
-                    await on_tts_start()
-                    start_index = self._context_next_index(learning_context)
-                    reply_text, next_index, total_words = await self._teach_vocabulary_stepwise(
-                        selected_topic,
-                        on_tts_sentence=on_tts_sentence,
-                        on_tts_audio=on_tts_audio,
-                        on_learning_card=on_learning_card,
-                        is_aborted=is_aborted,
-                        start_index=start_index,
-                        batch_size=VOCAB_BATCH_SIZE,
-                    )
-                    learning_context["next_index"] = str(next_index)
-                    learning_context["finished"] = "1" if next_index >= total_words else "0"
-                    lock_target_index = self._lock_target_index(learning_context)
-                    if next_index >= lock_target_index:
-                        learning_context["locked"] = "0"
-                    if not is_aborted():
-                        await on_tts_stop()
-                    return (user_text, reply_text)
+                if locked_mode == "vocabulary" and locked_topic_id:
+                    selected_topic = get_topic_by_id("vocabulary", locked_topic_id)
+                    if selected_topic:
+                        await on_tts_start()
+                        start_index = self._context_next_index(learning_context)
+                        reply_text, next_index, total_words = await self._teach_vocabulary_stepwise(
+                            selected_topic,
+                            on_tts_sentence=on_tts_sentence,
+                            on_tts_audio=on_tts_audio,
+                            on_learning_card=on_learning_card,
+                            is_aborted=is_aborted,
+                            start_index=start_index,
+                            batch_size=VOCAB_BATCH_SIZE,
+                        )
+                        learning_context["next_index"] = str(next_index)
+                        learning_context["finished"] = "1" if next_index >= total_words else "0"
+                        lock_target_index = self._lock_target_index(learning_context)
+                        if next_index >= lock_target_index:
+                            learning_context["locked"] = "0"
+                        if not is_aborted():
+                            await on_tts_stop()
+                        return (user_text, reply_text)
 
-            if locked_mode == "conversation" and locked_topic_id:
-                selected_topic = get_topic_by_id("conversation", locked_topic_id)
-                if selected_topic:
-                    await on_tts_start()
-                    reply_text = build_conversation_lesson(selected_topic)
-                    await on_tts_sentence(reply_text)
-                    await self._send_frames_with_pacing(
-                        self._tts.synthesize(reply_text),
-                        on_tts_audio=on_tts_audio,
-                        is_aborted=is_aborted,
-                    )
-                    if not is_aborted():
-                        await on_tts_stop()
-                    return (user_text, reply_text)
+                if locked_mode == "conversation" and locked_topic_id:
+                    selected_topic = get_topic_by_id("conversation", locked_topic_id)
+                    if selected_topic:
+                        await on_tts_start()
+                        reply_text = build_conversation_lesson(selected_topic)
+                        await on_tts_sentence(reply_text)
+                        await self._send_frames_with_pacing(
+                            self._tts.synthesize(reply_text),
+                            on_tts_audio=on_tts_audio,
+                            is_aborted=is_aborted,
+                        )
+                        if not is_aborted():
+                            await on_tts_stop()
+                        return (user_text, reply_text)
 
             # Lock không hợp lệ thì mở khóa để fallback xử lý bình thường.
             learning_context["locked"] = "0"
@@ -553,6 +562,35 @@ class ConversationPipeline:
     @staticmethod
     def _is_learning_locked(learning_context: dict[str, str | None]) -> bool:
         return str(learning_context.get("locked") or "0").strip() in {"1", "true", "yes", "on"}
+
+    @staticmethod
+    def _looks_like_learning_followup(text: str, learning_context: dict[str, str | None]) -> bool:
+        lowered = (text or "").lower()
+        markers = (
+            "học",
+            "hoc",
+            "tiếp",
+            "tiep",
+            "nhắc lại",
+            "nhac lai",
+            "từ",
+            "tu",
+            "vựng",
+            "vung",
+            "hội thoại",
+            "hoi thoai",
+            "chủ đề",
+            "chu de",
+            "đọc lại",
+            "doc lai",
+        )
+        if any(m in lowered for m in markers):
+            return True
+
+        topic_id = str(learning_context.get("topic_id") or "").strip().lower()
+        if topic_id and topic_id in lowered:
+            return True
+        return False
 
     @staticmethod
     def _lock_target_index(learning_context: dict[str, str | None]) -> int:

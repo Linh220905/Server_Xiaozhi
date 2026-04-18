@@ -312,6 +312,7 @@ def _topic_aliases() -> dict[str, list[str]]:
 
 def _find_topic_in_list(topics: list[dict], text: str) -> dict | None:
     cleaned = normalize_text(text)
+    tokens = set(cleaned.split())
     aliases = _topic_aliases()
     best_topic: dict | None = None
     best_score = 0.0
@@ -320,8 +321,19 @@ def _find_topic_in_list(topics: list[dict], text: str) -> dict | None:
         topic_id = str(topic.get("id", ""))
         name = normalize_text(str(topic.get("name") or topic.get("title") or ""))
         search_terms = [topic_id, name, *aliases.get(topic_id, [])]
-        if any(term and term in cleaned for term in search_terms):
-            return topic
+        for term in search_terms:
+            term_clean = normalize_text(term)
+            if not term_clean:
+                continue
+
+            # Term quá ngắn (vd: "it") dễ match nhầm trong chuỗi rác.
+            if len(term_clean) <= 2:
+                if term_clean in tokens:
+                    return topic
+                continue
+
+            if term_clean in cleaned:
+                return topic
 
         # Fuzzy fallback for STT variants (e.g. 'cong nghiep' ~ 'cong nghe').
         for term in search_terms:
@@ -333,7 +345,8 @@ def _find_topic_in_list(topics: list[dict], text: str) -> dict | None:
                 best_score = score
                 best_topic = topic
 
-    if best_topic is not None and best_score >= 0.62:
+    # Fuzzy chỉ dùng như fallback cuối, ngưỡng cao để tránh bắt nhầm intent.
+    if best_topic is not None and best_score >= 0.74:
         return best_topic
 
     return None
