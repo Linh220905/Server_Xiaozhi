@@ -56,13 +56,19 @@ def _pick_flashcard_font(size: int, bold: bool = False):
             [
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
                 "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+                "/usr/share/fonts/truetype/noto/NotoSansDisplay-Bold.ttf",
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
             ]
         )
     candidates.extend(
         [
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSansDisplay-Regular.ttf",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
             "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
         ]
     )
 
@@ -211,7 +217,8 @@ async def learning_flashcard(
             tw = max(1, bbox[2] - bbox[0])
             return int(max(panel_left + panel_margin, (w - tw) // 2))
 
-        word_text = safe_word.upper()
+        # Keep original casing so short words can render larger and avoid unnecessary width inflation.
+        word_text = safe_word
 
         def _fit_font(text: str, prefer: int, min_size: int, max_w: int, max_h: int, bold: bool = True):
             size = prefer
@@ -273,15 +280,28 @@ async def learning_flashcard(
         bottom_h = max(1, panel_bottom - split_y - panel_margin)
         usable_w = max(1, panel_right - panel_left - panel_margin * 2)
 
-        # ③④ Bắt đầu prefer lớn hơn, ngưỡng fit rộng hơn → word to và rõ
-        word_font = _fit_font(
-            word_text,
-            prefer=max(100, int(h * 0.64)),
-            min_size=max(38, int(h * 0.20)),
-            max_w=usable_w,
-            max_h=int(top_h * 0.96),
-            bold=True,
-        )
+        # ③④ Word tiếng Anh: ưu tiên cỡ to hơn; nếu cụm từ dài thì cho xuống tối đa 2 dòng.
+        word_font: object = None
+        word_lines: list[str] = [word_text]
+        word_line_gap = max(2, h // 64)
+        word_max_lines = 2 if is_small_card else 1
+
+        for size in range(max(118, int(h * 0.78)), max(40, int(h * 0.22)) - 1, -2):
+            f = _pick_flashcard_font(size, bold=True)
+            lines = _wrap_text_to_width(word_text, f, int(usable_w * 0.98), max_lines=word_max_lines)
+            line_metrics = [draw.textbbox((0, 0), ln, font=f) for ln in lines]
+            line_heights = [max(1, bb[3] - bb[1]) for bb in line_metrics]
+            line_widths = [max(1, bb[2] - bb[0]) for bb in line_metrics]
+            block_h = sum(line_heights) + (word_line_gap if len(lines) > 1 else 0)
+
+            if line_widths and max(line_widths) <= int(usable_w * 0.98) and block_h <= int(top_h * 0.98):
+                word_font = f
+                word_lines = lines
+                break
+
+        if word_font is None:
+            word_font = _pick_flashcard_font(max(40, int(h * 0.22)), bold=True)
+            word_lines = _wrap_text_to_width(word_text, word_font, int(usable_w * 0.98), max_lines=word_max_lines)
 
         # ⑤ Meaning: vòng lặp bắt đầu to hơn, ngưỡng fit 0.94 thay vì 0.90
         meaning_font: object = None
@@ -308,16 +328,20 @@ async def learning_flashcard(
             meaning_lines = _wrap_text_to_width(safe_meaning, meaning_font, usable_w, max_lines=meaning_max_lines)
 
         # --- Vẽ word ---
-        word_bbox = draw.textbbox((0, 0), word_text, font=word_font)
-        word_h    = max(1, word_bbox[3] - word_bbox[1])
-        y_word    = panel_top + max(panel_margin, (top_h - word_h) // 2)
+        word_metrics = [draw.textbbox((0, 0), ln, font=word_font) for ln in word_lines]
+        word_heights = [max(1, bb[3] - bb[1]) for bb in word_metrics]
+        word_block_h = sum(word_heights) + (word_line_gap if len(word_lines) > 1 else 0)
+        y_word = panel_top + max(panel_margin // 2, (top_h - word_block_h) // 2)
 
-        draw.text(
-            (_center_x(word_text, word_font), y_word),
-            word_text,
-            fill="#111827",
-            font=word_font,
-        )
+        word_cursor_y = y_word
+        for i, ln in enumerate(word_lines):
+            draw.text(
+                (_center_x(ln, word_font), word_cursor_y),
+                ln,
+                fill="#111827",
+                font=word_font,
+            )
+            word_cursor_y += word_heights[i] + (word_line_gap if i < len(word_lines) - 1 else 0)
 
         # --- Vẽ meaning (có thể 1–2 dòng) ---
         line_gap     = max(4, h // 52)
