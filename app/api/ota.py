@@ -1,9 +1,11 @@
 from app.server_logging import get_logger
 import uuid
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 
+from app.config import config
 from app.robots.crud import get_robot_by_mac, create_robot, generate_otp
 from app.robots.models import RobotCreate
 
@@ -35,14 +37,28 @@ def _ensure_robot(mac: str):
 @router.api_route("/api/v1/nexus/ota/", methods=["GET", "POST"])
 @router.api_route("/api/v1/nexus/ota", methods=["GET", "POST"])
 async def ota_bootstrap(request: Request) -> dict:
-    host = request.headers.get("host", "127.0.0.1:8000")
+    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
+    request_scheme = (request.url.scheme or "http").lower()
+    http_scheme = forwarded_proto or request_scheme
+    ws_scheme = "wss" if http_scheme == "https" else "ws"
+
+    host = request.headers.get("x-forwarded-host", "").split(",")[0].strip()
+    if not host:
+        host = request.headers.get("host", "").strip()
+    if not host:
+        client_host = request.client.host if request.client else ""
+        host = f"{client_host}:{config.server.port}" if client_host else f"127.0.0.1:{config.server.port}"
+
     mac = request.headers.get("device-id", "").strip()
 
-    ws_url = f"ws://{host}"
+    public_ws_url = os.getenv("NEXUS_WS_URL", "").strip()
+    public_http_base = os.getenv("NEXUS_HTTP_BASE_URL", "").strip().rstrip("/")
+
+    ws_url = public_ws_url or f"{ws_scheme}://{host}/"
+    http_base = public_http_base or f"{http_scheme}://{host}"
     now_ms = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 
     # Lấy firmware mới nhất trong static/firmware
-    import os
     firmware_dir = os.path.join(os.path.dirname(__file__), '../../static/firmware')
     firmware_dir = os.path.abspath(firmware_dir)
     firmware_file = None
@@ -55,7 +71,7 @@ async def ota_bootstrap(request: Request) -> dict:
             except Exception:
                 firmware_version = "1.0.0"
             break
-    firmware_url = f"http://{host}/static/firmware/{firmware_file}" if firmware_file else ""
+    firmware_url = f"{http_base}/static/firmware/{firmware_file}" if firmware_file else ""
     response: dict = {
         "websocket": {
             "url": ws_url,
@@ -72,6 +88,8 @@ async def ota_bootstrap(request: Request) -> dict:
             "force": 0,
         },
     }
+
+    logger.info("OTA bootstrap for mac=%s -> websocket.url=%s firmware.url=%s", mac or "?", ws_url, firmware_url)
 
     if mac:
         robot = _ensure_robot(mac)
