@@ -273,7 +273,12 @@ def find_topic(mode: LearningMode | str, text: str) -> dict | None:
 def build_mode_suggestion(mode: LearningMode) -> str:
     if mode == "vocabulary":
         vocab_topics = _build_vocab_topics_with_images()
-        names = ", ".join(t["name"] for t in vocab_topics[:5])
+        picked_names = [
+            (str(t.get("name") or "").strip() or str(t.get("id") or "").strip())
+            for t in vocab_topics[:5]
+        ]
+        picked_names = [name for name in picked_names if name]
+        names = ", ".join(picked_names) if picked_names else "du lịch, công nghệ, công việc"
         return (
             "Mình sẵn sàng học từ vựng theo chủ đề. "
             f"Bạn muốn học chủ đề nào: {names}? "

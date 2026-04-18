@@ -347,12 +347,30 @@ class ConversationPipeline:
         elif intent == "learning_conversation":
             mode = "conversation"
 
+        # LLM intent đôi khi trả learning_topic nhưng thiếu learning_mode/topic_id.
+        # Tự suy luận mode/topic từ câu user để tránh lặp hỏi lại.
+        inferred_topic = None
+        if mode not in {"vocabulary", "conversation"}:
+            if learning_context and learning_context.get("mode") in {"vocabulary", "conversation"}:
+                mode = str(learning_context.get("mode"))
+
+            vocab_topic = find_topic("vocabulary", user_text)
+            conv_topic = find_topic("conversation", user_text)
+            if vocab_topic:
+                mode = "vocabulary"
+                inferred_topic = vocab_topic
+            elif conv_topic:
+                mode = "conversation"
+                inferred_topic = conv_topic
+
         if mode in {"vocabulary", "conversation"} and learning_context is not None:
             learning_context["mode"] = mode
 
         selected_topic = None
         if topic_id and mode in {"vocabulary", "conversation"}:
             selected_topic = get_topic_by_id(mode, topic_id)
+        if selected_topic is None and inferred_topic is not None:
+            selected_topic = inferred_topic
         if selected_topic is None and mode in {"vocabulary", "conversation"}:
             selected_topic = find_topic(mode, user_text)
 

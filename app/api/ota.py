@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Request
 
 from app.config import config
-from app.robots.crud import get_robot_by_mac, create_robot, generate_otp
+from app.robots.crud import get_robot_by_mac, create_robot, generate_otp, update_robot_status
 from app.robots.models import RobotCreate
 
 logger = get_logger(__name__)
@@ -93,6 +93,7 @@ async def ota_bootstrap(request: Request) -> dict:
 
     if mac:
         robot = _ensure_robot(mac)
+        update_robot_status(mac, True)
 
         if robot and not robot.owner_username:
             otp = generate_otp(mac, ttl_minutes=10)

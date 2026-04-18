@@ -16,8 +16,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 from app.config import config
 from app.mcp import MCPToolRegistry
 from app.models import ServerHello, AudioParams
-from app.websocket.session import Session, create_session, remove_session
-from app.robots.crud import get_robot_config, get_robot_by_mac, create_robot, update_robot_status, generate_otp
+from app.websocket.session import Session, create_session, remove_session, get_all_sessions
+from app.robots.crud import get_robot_config, get_robot_by_mac, create_robot, update_robot_status, touch_robot_last_seen, generate_otp
 from app.database.chat_history import save_chat_session
 from app.database.assignments import get_latest_active_assignment_for_robot
 from app.robots.models import RobotCreate
@@ -26,6 +26,37 @@ logger = get_logger(__name__)
 mcp_tools = MCPToolRegistry()
 _session_ws: dict[str, WebSocket] = {}
 _session_send_locks: dict[str, asyncio.Lock] = {}
+_pending_offline_tasks: dict[str, asyncio.Task] = {}
+OFFLINE_DELAY_SECONDS = 300
+
+
+def _cancel_pending_offline(device_id: str) -> None:
+    task = _pending_offline_tasks.pop(device_id, None)
+    if task and not task.done():
+        task.cancel()
+
+
+def _has_active_session_for_device(device_id: str) -> bool:
+    return any(s.device_id == device_id for s in get_all_sessions())
+
+
+def _schedule_offline_if_inactive(device_id: str) -> None:
+    _cancel_pending_offline(device_id)
+
+    async def _runner() -> None:
+        try:
+            await asyncio.sleep(OFFLINE_DELAY_SECONDS)
+            if _has_active_session_for_device(device_id):
+                logger.info("[%s] Skip offline: device has active session", device_id)
+                return
+            updated = update_robot_status(device_id, False)
+            logger.info("[%s] Auto-offline after %ss inactivity: %s", device_id, OFFLINE_DELAY_SECONDS, "ok" if updated else "not-found")
+        except asyncio.CancelledError:
+            return
+        finally:
+            _pending_offline_tasks.pop(device_id, None)
+
+    _pending_offline_tasks[device_id] = asyncio.create_task(_runner())
 
 
 def _normalize_robot_id(device_id: str, client_id: str) -> str:
@@ -74,16 +105,13 @@ async def handle_client(ws: WebSocket) -> None:
     proto_version = ws.headers.get("protocol-version", "1")
 
     session = create_session(config, device_id, client_id)
+    _cancel_pending_offline(device_id)
     # Register websocket for this session so background tasks can push to it
     _session_ws[session.session_id] = ws
     _session_send_locks[session.session_id] = asyncio.Lock()
 
     # Auto register robot from ESP32 identity headers (Device-Id/Client-Id)
     _ensure_robot_registered(device_id, client_id)
-    try:
-        update_robot_status(device_id, True)
-    except Exception as e:
-        logger.warning("[%s] Failed to set robot online status: %s", device_id, e)
     
     logger.info(f"[{device_id}] Connected (protocol v{proto_version})")
 
@@ -127,9 +155,10 @@ async def handle_client(ws: WebSocket) -> None:
         _pipeline_triggered.discard(session.session_id)
 
         try:
-            update_robot_status(device_id, False)
+            touch_robot_last_seen(device_id)
+            _schedule_offline_if_inactive(device_id)
         except Exception as e:
-            logger.warning("[%s] Failed to set robot offline status: %s", device_id, e)
+            logger.warning("[%s] Failed to schedule robot offline status: %s", device_id, e)
 
         # Cleanup websocket mapping and session
         try:

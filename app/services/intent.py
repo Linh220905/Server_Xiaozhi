@@ -78,7 +78,21 @@ class IntentDetectorService:
                 return IntentResult(intent="set_brightness", brightness=brightness)
 
         # 2. Music intent
-        if any(k in lowered for k in ("hoc tu vung", "học từ vựng", "tu vung", "từ vựng", "hoc tu moi", "học từ mới")):
+        if any(
+            k in lowered
+            for k in (
+                "hoc tu vung",
+                "học từ vựng",
+                "tu vung",
+                "từ vựng",
+                "hoc tu moi",
+                "học từ mới",
+                "hoc tu vat",
+                "học từ vật",
+                "tu vat",
+                "từ vật",
+            )
+        ):
             topic = find_topic("vocabulary", lowered)
             return IntentResult(
                 intent="learning_vocab",

@@ -153,6 +153,22 @@ def update_robot_status(mac_address: str, is_online: bool) -> bool:
         return cursor.rowcount > 0
 
 
+def touch_robot_last_seen(mac_address: str) -> bool:
+    """Update only last_seen timestamp without changing online state."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE robots
+            SET last_seen = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE mac_address = ?
+            """,
+            (mac_address,)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
 def get_robot_config(mac_address: str) -> Optional[RobotConfigInDB]:
     """Get robot configuration."""
     with get_db_connection() as conn:
@@ -238,8 +254,8 @@ def update_robot_config(mac_address: str, config_update: RobotConfigUpdate) -> O
                 tts_config=current_config_data.get('tts_config'),
                 stt_config=current_config_data.get('stt_config'),
                 version=int(current_config_data.get('version', 1)),
-                created_at=str(datetime.now()),
-                updated_at=str(datetime.now())
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             )
         return None
 

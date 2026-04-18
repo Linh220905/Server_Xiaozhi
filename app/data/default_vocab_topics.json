@@ -1,0 +1,92 @@
+[
+  {
+    "id": "travel",
+    "icon": "✈️",
+    "name": "Du lịch",
+    "count": 45,
+    "level": "beginner",
+    "category": "beginner",
+    "words": [
+      {"word": "Passport", "meaning": "Hộ chiếu"},
+      {"word": "Luggage", "meaning": "Hành lý"},
+      {"word": "Boarding pass", "meaning": "Thẻ lên máy bay"},
+      {"word": "Destination", "meaning": "Điểm đến"},
+      {"word": "Reservation", "meaning": "Đặt chỗ"}
+    ]
+  },
+  {
+    "id": "work",
+    "icon": "💼",
+    "name": "Công việc",
+    "count": 60,
+    "level": "intermediate",
+    "category": "intermediate",
+    "words": [
+      {"word": "Deadline", "meaning": "Hạn chót"},
+      {"word": "Collaborate", "meaning": "Hợp tác"},
+      {"word": "Presentation", "meaning": "Bài thuyết trình"},
+      {"word": "Negotiate", "meaning": "Đàm phán"},
+      {"word": "Strategy", "meaning": "Chiến lược"}
+    ]
+  },
+  {
+    "id": "food",
+    "icon": "🍜",
+    "name": "Ẩm thực",
+    "count": 38,
+    "level": "beginner",
+    "category": "beginner",
+    "words": [
+      {"word": "Menu", "meaning": "Thực đơn"},
+      {"word": "Appetizer", "meaning": "Món khai vị"},
+      {"word": "Ingredient", "meaning": "Nguyên liệu"},
+      {"word": "Recipe", "meaning": "Công thức"},
+      {"word": "Dessert", "meaning": "Món tráng miệng"}
+    ]
+  },
+  {
+    "id": "health",
+    "icon": "🏥",
+    "name": "Y tế",
+    "count": 42,
+    "level": "intermediate",
+    "category": "intermediate",
+    "words": [
+      {"word": "Appointment", "meaning": "Lịch hẹn"},
+      {"word": "Prescription", "meaning": "Đơn thuốc"},
+      {"word": "Symptom", "meaning": "Triệu chứng"},
+      {"word": "Treatment", "meaning": "Phương pháp điều trị"},
+      {"word": "Emergency", "meaning": "Trường hợp khẩn cấp"}
+    ]
+  },
+  {
+    "id": "technology",
+    "icon": "💻",
+    "name": "Công nghệ",
+    "count": 55,
+    "level": "advanced",
+    "category": "advanced",
+    "words": [
+      {"word": "Algorithm", "meaning": "Thuật toán"},
+      {"word": "Database", "meaning": "Cơ sở dữ liệu"},
+      {"word": "Deployment", "meaning": "Triển khai"},
+      {"word": "Encryption", "meaning": "Mã hóa"},
+      {"word": "Scalability", "meaning": "Khả năng mở rộng"}
+    ]
+  },
+  {
+    "id": "education",
+    "icon": "🏫",
+    "name": "Giáo dục",
+    "count": 40,
+    "level": "beginner",
+    "category": "beginner",
+    "words": [
+      {"word": "Curriculum", "meaning": "Chương trình học"},
+      {"word": "Assignment", "meaning": "Bài tập"},
+      {"word": "Lecture", "meaning": "Bài giảng"},
+      {"word": "Scholarship", "meaning": "Học bổng"},
+      {"word": "Tuition", "meaning": "Học phí"}
+    ]
+  }
+]

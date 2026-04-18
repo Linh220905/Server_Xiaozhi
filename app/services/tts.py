@@ -20,6 +20,7 @@ import base64
 import html
 from app.server_logging import get_logger
 import math
+import os
 import re
 import shutil
 import struct
@@ -1177,29 +1178,70 @@ class TTSService:
             logger.warning("yt-dlp not found, full-song streaming unavailable")
             return None
 
-        search_query = f"ytsearch1:{query} official audio"
-        cmd = [
+        cookies_file = os.getenv("YTDLP_COOKIES_FILE", "").strip()
+        browser_cookies = os.getenv("YTDLP_BROWSER_COOKIES", "").strip()
+
+        common_args = [
             ytdlp,
             "-f", "bestaudio/best",
             "-g",
             "--no-playlist",
-            search_query,
+            "--no-warnings",
+        ]
+        if cookies_file:
+            common_args.extend(["--cookies", cookies_file])
+        elif browser_cookies:
+            common_args.extend(["--cookies-from-browser", browser_cookies])
+
+        attempts: list[tuple[str, list[str]]] = [
+            (
+                "youtube-official",
+                [
+                    "--extractor-args", "youtube:player_client=android,web",
+                    f"ytsearch1:{query} official audio",
+                ],
+            ),
+            (
+                "youtube-generic",
+                [
+                    "--extractor-args", "youtube:player_client=android,web",
+                    f"ytsearch1:{query}",
+                ],
+            ),
+            (
+                "soundcloud",
+                [f"scsearch1:{query}"],
+            ),
         ]
 
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await process.communicate()
-
-        if process.returncode != 0:
-            logger.warning(
-                "yt-dlp failed (%s): %s",
-                process.returncode,
-                (stderr or b"").decode("utf-8", errors="ignore"),
+        last_error = ""
+        for source, extra_args in attempts:
+            cmd = [*common_args, *extra_args]
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            return None
+            stdout, stderr = await process.communicate()
+            stderr_text = (stderr or b"").decode("utf-8", errors="ignore").strip()
 
-        urls = (stdout or b"").decode("utf-8", errors="ignore").strip().splitlines()
-        return urls[0].strip() if urls else None
+            if process.returncode == 0:
+                urls = (stdout or b"").decode("utf-8", errors="ignore").strip().splitlines()
+                url = urls[0].strip() if urls else ""
+                if url:
+                    logger.info("yt-dlp resolved audio url via %s", source)
+                    return url
+
+            if stderr_text:
+                last_error = stderr_text
+                if "Sign in to confirm you\u2019re not a bot" in stderr_text or "Sign in to confirm you're not a bot" in stderr_text:
+                    logger.warning(
+                        "yt-dlp %s blocked by YouTube bot-check; configure YTDLP_COOKIES_FILE or YTDLP_BROWSER_COOKIES",
+                        source,
+                    )
+                else:
+                    logger.warning("yt-dlp %s failed (%s): %s", source, process.returncode, stderr_text)
+
+        if last_error:
+            logger.warning("yt-dlp exhausted all sources for query '%s'", query)
+        return None

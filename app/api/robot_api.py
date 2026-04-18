@@ -5,11 +5,11 @@ from datetime import datetime
 from ..auth.security import get_current_active_user
 from ..auth.models import TokenData
 from ..api.auth_google import require_admin, require_viewer
-from ..robots.models import RobotCreate, RobotUpdate, RobotInDB, RobotConfigUpdate, RobotConfigInDB, RobotStatus
+from ..robots.models import RobotCreate, RobotUpdate, RobotInDB, RobotConfigUpdate, RobotConfigInDB
 from ..robots.crud import (
     get_robot_by_mac, create_robot, update_robot, delete_robot,
     get_all_robots, update_robot_status, get_robot_config,
-    update_robot_config, reset_robot_config, get_robot_status,
+    update_robot_config, reset_robot_config,
     generate_otp, claim_robot_by_otp,
 )
 from pydantic import BaseModel
@@ -136,17 +136,6 @@ async def reset_robot_configuration(
     if not reset:
         raise HTTPException(status_code=400, detail="Failed to reset robot configuration")
     return {"message": "Robot configuration reset to default"}
-
-
-@router.get("/{mac_address}/status", response_model=RobotStatus)
-async def get_robot_status_endpoint(
-    mac_address: str,
-    session: dict = Depends(require_viewer)
-) -> RobotStatus:
-    status = get_robot_status(mac_address)
-    if not status:
-        raise HTTPException(status_code=404, detail="Robot not found")
-    return status
 
 
 class ClaimRequest(BaseModel):
