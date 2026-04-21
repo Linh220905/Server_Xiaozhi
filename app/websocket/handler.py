@@ -141,6 +141,8 @@ async def handle_client(ws: WebSocket) -> None:
         _high_rms_counters.pop(session.session_id, None)
         _post_high_silence_counters.pop(session.session_id, None)
         _high_rms_armed.discard(session.session_id)
+        _rms_baseline_avg.pop(session.session_id, None)
+        _rms_noise_jitter.pop(session.session_id, None)
         _pipeline_finished_at.pop(session.session_id, None)
         already = session.session_id in _pipeline_triggered
         if session.buffer_size > 3200 and not already:
@@ -204,16 +206,19 @@ _low_rms_counters: dict[str, int] = {}
 _high_rms_counters: dict[str, int] = {}
 _post_high_silence_counters: dict[str, int] = {}
 _high_rms_armed: set[str] = set()
+_rms_baseline_avg: dict[str, float] = {}
+_rms_noise_jitter: dict[str, float] = {}
 _pipeline_triggered: set[str] = set()  # Chặn trigger pipeline nhiều lần
 _pipeline_finished_at: dict[str, float] = {}  # Timestamp khi pipeline kết thúc
 
 IDLE_TIMEOUT_FRAMES = 1000  
 LOW_RMS_THRESHOLD_MIN = 700
 LOW_RMS_FRAMES = 90
-HIGH_RMS_THRESHOLD = 4000
-HIGH_RMS_FRAMES = 5
-POST_HIGH_SILENCE_THRESHOLD = 3000
-POST_HIGH_SILENCE_FRAMES = 15
+RMS_MARGIN_MIN = 500
+RMS_MARGIN_MAX = 800
+RMS_SPIKE_DELTA = 2000
+HIGH_RMS_FRAMES = 6  # >5 frames mới xác nhận có người nói
+POST_HIGH_SILENCE_FRAMES = 8
 COOLDOWN_SECONDS = 1.5  # Bỏ qua audio residual sau khi pipeline xong
 MAX_UTTERANCE_FRAMES = 260  # ~15.6s @ 60ms/frame
 
@@ -232,6 +237,31 @@ def _update_consecutive_counter(
         value = 0
     counters[session_id] = value
     return value
+
+
+def _update_rms_baseline(session_id: str, rms: float, *, freeze: bool) -> tuple[float, int]:
+    """Theo dõi baseline RMS động và biên nhiễu (kẹp 500-800)."""
+    baseline = _rms_baseline_avg.get(session_id)
+    jitter = _rms_noise_jitter.get(session_id, 0.0)
+
+    if baseline is None:
+        baseline = rms
+        _rms_baseline_avg[session_id] = baseline
+        _rms_noise_jitter[session_id] = 0.0
+        return baseline, RMS_MARGIN_MIN
+
+    abs_delta = abs(rms - baseline)
+    jitter = (1.0 - 0.08) * jitter + 0.08 * abs_delta
+    margin = int(max(RMS_MARGIN_MIN, min(RMS_MARGIN_MAX, jitter * 3.0)))
+
+    if not freeze:
+        alpha = 0.09 if rms < baseline else 0.03
+        capped_rms = min(rms, baseline + margin)
+        baseline = (1.0 - alpha) * baseline + alpha * capped_rms
+
+    _rms_baseline_avg[session_id] = baseline
+    _rms_noise_jitter[session_id] = jitter
+    return baseline, margin
 
 
 def _on_binary(ws: WebSocket, session: Session, data: bytes, proto_version: int) -> None:
@@ -262,27 +292,36 @@ def _on_binary(ws: WebSocket, session: Session, data: bytes, proto_version: int)
     _frame_counters[session.session_id] = count
 
     rms = session._calc_rms(pcm)
+    high_rms_armed = session.session_id in _high_rms_armed
+    baseline_rms, adaptive_margin = _update_rms_baseline(
+        session.session_id,
+        rms,
+        freeze=high_rms_armed,
+    )
+    dynamic_high_threshold = baseline_rms + RMS_SPIKE_DELTA
+    dynamic_return_threshold = baseline_rms + adaptive_margin
+
     high_rms_count = _update_consecutive_counter(
         _high_rms_counters,
         session.session_id,
         enabled=True,
-        matched=rms > HIGH_RMS_THRESHOLD,
+        matched=rms > dynamic_high_threshold,
     )
 
-    high_rms_armed = session.session_id in _high_rms_armed
     if (not high_rms_armed) and high_rms_count >= HIGH_RMS_FRAMES:
         _high_rms_armed.add(session.session_id)
         high_rms_armed = True
         _post_high_silence_counters[session.session_id] = 0
         logger.info(
-            f"[{session.device_id}] High-RMS armed: rms>{HIGH_RMS_THRESHOLD} for {high_rms_count} frames"
+            f"[{session.device_id}] High-RMS armed: rms>{dynamic_high_threshold:.0f} "
+            f"(base={baseline_rms:.0f}, spike=+{RMS_SPIKE_DELTA}) for {high_rms_count} frames"
         )
 
     post_high_silence_count = _update_consecutive_counter(
         _post_high_silence_counters,
         session.session_id,
         enabled=high_rms_armed,
-        matched=rms < POST_HIGH_SILENCE_THRESHOLD,
+        matched=rms <= dynamic_return_threshold,
     )
 
     # Cập nhật VAD trước để lấy trạng thái mới nhất (_has_speech/_silent_frames/thresholds)
@@ -301,6 +340,7 @@ def _on_binary(ws: WebSocket, session: Session, data: bytes, proto_version: int)
     if count <= 10 or count % 5 == 0:
         logger.info(
             f"[{session.device_id}] #{count} rms={rms:.0f} "
+            f"base={baseline_rms:.0f} margin={adaptive_margin} "
             f"noise_floor={session._noise_floor_rms:.0f} "
             f"delta={session._last_rms_delta:.0f} "
             f"th_s={session._last_speech_threshold:.0f} th_z={session._last_silence_threshold:.0f} "
@@ -315,7 +355,9 @@ def _on_binary(ws: WebSocket, session: Session, data: bytes, proto_version: int)
         _high_rms_armed.discard(session.session_id)
         _post_high_silence_counters[session.session_id] = 0
         logger.info(
-            f"[{session.device_id}] High-RMS+Silence trigger: rms>{HIGH_RMS_THRESHOLD}({HIGH_RMS_FRAMES}f) rồi rms<{POST_HIGH_SILENCE_THRESHOLD}({post_high_silence_count}f) -> triggering STT"
+            f"[{session.device_id}] Adaptive High-RMS trigger: "
+            f"rms>{dynamic_high_threshold:.0f}({HIGH_RMS_FRAMES}f) rồi "
+            f"rms<={dynamic_return_threshold:.0f} (base+silent_margin, {post_high_silence_count}f) -> triggering STT"
         )
         asyncio.create_task(_run_pipeline(ws, session))
         return
@@ -389,6 +431,8 @@ async def _goodbye_and_idle(ws: WebSocket, session: Session) -> None:
     _high_rms_counters.pop(session.session_id, None)
     _post_high_silence_counters.pop(session.session_id, None)
     _high_rms_armed.discard(session.session_id)
+    _rms_baseline_avg.pop(session.session_id, None)
+    _rms_noise_jitter.pop(session.session_id, None)
 
     # Với ESP32 auto mode, sau tts stop thiết bị sẽ tự quay lại listening.
     # Đóng websocket để thiết bị chuyển hẳn về idle, tránh lặp lại timeout-goodbye.
@@ -428,6 +472,8 @@ async def _handle_listen(ws: WebSocket, session: Session, msg: dict) -> None:
         _high_rms_counters[session.session_id] = 0
         _post_high_silence_counters[session.session_id] = 0
         _high_rms_armed.discard(session.session_id)
+        _rms_baseline_avg.pop(session.session_id, None)
+        _rms_noise_jitter.pop(session.session_id, None)
         _pipeline_triggered.discard(session.session_id)
         logger.info(f"[{session.device_id}] Recording started (mode={mode})")
 
@@ -527,6 +573,8 @@ async def _run_pipeline(ws: WebSocket, session: Session) -> None:
         _high_rms_counters[session.session_id] = 0
         _post_high_silence_counters[session.session_id] = 0
         _high_rms_armed.discard(session.session_id)
+        _rms_baseline_avg.pop(session.session_id, None)
+        _rms_noise_jitter.pop(session.session_id, None)
         session.reset_audio_buffer()
         return
 
@@ -700,6 +748,8 @@ async def _run_pipeline(ws: WebSocket, session: Session) -> None:
         _high_rms_counters[session.session_id] = 0
         _post_high_silence_counters[session.session_id] = 0
         _high_rms_armed.discard(session.session_id)
+        _rms_baseline_avg.pop(session.session_id, None)
+        _rms_noise_jitter.pop(session.session_id, None)
         session.reset_audio_buffer()
         logger.info(f"[{session.device_id}] Pipeline finished → reset state, ready for next utterance")
 
