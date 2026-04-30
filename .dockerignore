@@ -13,3 +13,4 @@ logs/
 models/
 flow.png
 static/firmware/
+!static/asset/**
