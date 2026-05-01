@@ -611,6 +611,11 @@
     .status-chip { display: inline-flex; align-items: center; gap: .32rem; padding: .2rem .6rem; border-radius: 99px; font-size: .63rem; font-weight: 700; letter-spacing: .04em; border: 1px solid transparent; }
     .status-online  { background: var(--green-d); color: var(--green); border-color: rgba(26,158,92,0.2); }
     .status-offline { background: var(--bg); color: var(--text-3); border-color: var(--border); }
+    .status-pending { background: var(--amber-d); color: var(--amber); border-color: rgba(217,119,6,0.2); }
+    .status-confirmed { background: var(--blue-d); color: var(--blue); border-color: rgba(37,99,235,0.2); }
+    .status-shipped { background: var(--purple-d); color: var(--purple); border-color: rgba(124,58,237,0.2); }
+    .status-completed { background: var(--green-d); color: var(--green); border-color: rgba(26,158,92,0.2); }
+    .status-cancelled { background: var(--red-soft); color: var(--red); border-color: rgba(232,50,26,0.2); }
     .status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
     .status-online .status-dot { animation: pulse 2s ease infinite; box-shadow: 0 0 4px currentColor; }
     .card-body { padding: 1.15rem 1.2rem; }
@@ -620,6 +625,8 @@
     .card-info-label { color: var(--text-3); font-weight: 700; text-transform: uppercase; font-size: .58rem; letter-spacing: .06em; padding: .08rem 0; }
     .card-info-val { color: var(--text-2); font-weight: 600; padding: .08rem 0; }
     .card-actions { display: flex; gap: .45rem; padding-top: .85rem; border-top: 1px solid var(--border); }
+    .order-status-select { padding: .3rem .6rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg3); font-size: .72rem; font-weight: 700; color: var(--text-2); }
+    .order-status-select:hover { border-color: var(--border-hi); }
     .form-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 2.25rem 2.25rem 2.75rem; max-width: 700px; box-shadow: var(--shadow-sm); }
     .form-section { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 1.35rem; margin: 1.5rem 0; }
     .form-section-title { font-size: .65rem; font-weight: 800; color: var(--red); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 1rem; display: flex; align-items: center; gap: .4rem; }
@@ -1108,6 +1115,7 @@
     <div class="nav-section-label">Quản lý</div>
     <div class="nav-item admin-only" data-tab="add-robot" onclick="switchTab('add-robot',this)"><span class="nav-icon">＋</span> Thêm Robot</div>
     <div class="nav-item admin-only" data-tab="firmware" onclick="switchTab('firmware',this)"><span class="nav-icon">⬆</span> Firmware</div>
+    <div class="nav-item admin-only" data-tab="orders" onclick="switchTab('orders',this);loadAdminOrders();"><span class="nav-icon">📦</span> Đơn hàng</div>
     <div class="nav-item admin-only" data-tab="users" onclick="switchTab('users',this);loadAdminUsers();"><span class="nav-icon">👥</span> Người dùng</div>
     <div class="nav-item viewer-only" data-tab="claim-robot" onclick="switchTab('claim-robot',this)"><span class="nav-icon">🔑</span> Claim Robot</div>
     <div class="sb-footer">
@@ -1338,6 +1346,33 @@
       <div id="assignment-list"></div>
     </div>
 
+      <!-- Orders (Admin) -->
+      <div class="tab-view admin-only" id="tab-orders">
+        <div class="breadcrumb"><a onclick="switchTab('dashboard',document.querySelector('[data-tab=dashboard]'))">Dashboard</a><span class="bc-sep">›</span><span class="bc-current">Đơn hàng</span></div>
+        <div class="topbar"><div><div class="page-title">📦 Quản lý đơn hàng</div><div class="page-sub">Danh sách đơn đặt hàng từ landing page</div></div></div>
+        <div class="form-card" style="max-width:980px;margin-bottom:1.5rem;">
+          <div class="form-row">
+            <div class="field"><label>Trạng thái</label>
+              <select id="orders-filter-status" onchange="loadAdminOrders()">
+                <option value="all">Tất cả</option>
+                <option value="pending">Chờ xác nhận</option>
+                <option value="confirmed">Đã xác nhận</option>
+                <option value="shipped">Đang giao</option>
+                <option value="completed">Hoàn tất</option>
+                <option value="cancelled">Đã hủy</option>
+              </select>
+            </div>
+            <div class="field"><label>&nbsp;</label>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="loadAdminOrders()">🔄 Làm mới</button>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:.75rem;flex-wrap:wrap;">
+            <span class="count-pill" id="order-count">0 đơn</span>
+          </div>
+        </div>
+        <div id="order-list"></div>
+      </div>
+
     <!-- Users (Admin) -->
     <div class="tab-view admin-only" id="tab-users">
       <div class="breadcrumb"><a onclick="switchTab('dashboard',document.querySelector('[data-tab=dashboard]'))">Dashboard</a><span class="bc-sep">›</span><span class="bc-current">Người dùng</span></div>
@@ -1515,10 +1550,12 @@ const ROBOT_IMAGE_URL = '/static/asset/Nexusbot.png';
 const API_ROBOTS = '/api/robots/';
 const API_ASSIGNMENTS = '/api/assignments';
 const API_ADMIN_USERS = '/api/admin/users';
+const API_ORDERS = '/api/orders';
 let robots = [], currentUser = null, currentRole = null;
 let learningLoaded = false;
 let assignmentItems = [];
 let adminUsers = [];
+let adminOrders = [];
 let usersFilterDebounce = null;
 let adminUserRegistrationStats = [];
 let isLoadingRobots = false;
@@ -1621,6 +1658,7 @@ function switchTab(tab,el) {
   if(el)el.classList.add('active');
   if(tab==='dashboard') loadRobots();
   if(tab==='users' && currentRole==='admin') loadAdminUsers();
+  if(tab==='orders' && currentRole==='admin') loadAdminOrders();
 }
 
 async function loadRobots() {
@@ -1877,6 +1915,94 @@ async function deleteAssignment(id) {
   try{const res=await apiFetch(`${API_ASSIGNMENTS}/${encodeURIComponent(id)}`,{method:'DELETE'});const data=await res.json().catch(()=>({}));
     if(res.ok&&data.ok){toast('✓','Đã xóa bài tập','success');await loadAssignments();}else toast('✕',data.detail||'Xóa thất bại','error');
   }catch(err){if(err.message!=='Forbidden')toast('✕','Lỗi kết nối','error');}
+}
+
+// ─── ORDERS (ADMIN) ───
+const ORDER_STATUS_LABELS = {
+  pending: 'Chờ xác nhận',
+  confirmed: 'Đã xác nhận',
+  shipped: 'Đang giao',
+  completed: 'Hoàn tất',
+  cancelled: 'Đã hủy'
+};
+const ORDER_STATUS_CLASSES = {
+  pending: 'status-pending',
+  confirmed: 'status-confirmed',
+  shipped: 'status-shipped',
+  completed: 'status-completed',
+  cancelled: 'status-cancelled'
+};
+
+function renderAdminOrders() {
+  const list=document.getElementById('order-list'),badge=document.getElementById('order-count');
+  if(!list||!badge)return;badge.textContent=adminOrders.length+' đơn';
+  if(!adminOrders.length){
+    list.innerHTML='<div class="empty-state"><div class="ei">📦</div><h3>Chưa có đơn hàng</h3><p>Đơn hàng mới từ landing page sẽ hiển thị ở đây.</p></div>';
+    return;
+  }
+  list.innerHTML=adminOrders.map((o,idx)=>{
+    const status=(o.status||'pending').toLowerCase();
+    const statusLabel=ORDER_STATUS_LABELS[status]||status;
+    const statusClass=ORDER_STATUS_CLASSES[status]||'status-offline';
+    const pkg=o.package==='pro'?'Nexus Pro':'Nexus Starter';
+    const note=o.note?`<div style="font-size:.8rem;color:var(--text-2);line-height:1.6;margin:.55rem 0 0;">Ghi chú: ${esc(o.note)}</div>`:'';
+    return `<div class="robot-card" style="margin-bottom:1rem;animation-delay:${idx*.05}s">
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:flex-start;">
+          <div>
+            <div class="card-name">${esc(o.full_name||'Khách hàng')}</div>
+            <div style="font-size:.74rem;color:var(--text-2);margin-top:.35rem;line-height:1.6;">SĐT: ${esc(o.phone||'—')} ${o.email?`• Email: ${esc(o.email)}`:''}</div>
+          </div>
+          <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+            <span class="status-chip ${statusClass}"><span class="status-dot"></span>${esc(statusLabel)}</span>
+            <select class="order-status-select" onchange="changeOrderStatus(${o.id}, this.value)">
+              ${Object.keys(ORDER_STATUS_LABELS).map(s=>`<option value="${s}" ${s===status?'selected':''}>${ORDER_STATUS_LABELS[s]}</option>`).join('')}
+            </select>
+            <button class="btn btn-danger btn-sm" onclick="deleteOrder(${o.id})">Xóa</button>
+          </div>
+        </div>
+        <div class="card-info" style="grid-template-columns:130px 1fr;margin-top:.9rem;">
+          <span class="card-info-label">Mã đơn</span><span class="card-info-val">#${esc(String(o.id||''))}</span>
+          <span class="card-info-label">Gói</span><span class="card-info-val">${esc(pkg)}</span>
+          <span class="card-info-label">Địa chỉ</span><span class="card-info-val">${esc(o.address||'—')}</span>
+          <span class="card-info-label">Tạo lúc</span><span class="card-info-val">${fmtDate(o.created_at)}</span>
+          <span class="card-info-label">Cập nhật</span><span class="card-info-val">${fmtDate(o.updated_at)}</span>
+        </div>
+        ${note}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadAdminOrders() {
+  if(currentRole!=='admin')return;
+  const list=document.getElementById('order-list');
+  if(list)list.innerHTML='<div style="text-align:center;padding:2rem;"><span class="spinner spinner-dark"></span></div>';
+  const status=document.getElementById('orders-filter-status')?.value||'all';
+  const url=status==='all'?API_ORDERS:`${API_ORDERS}?status=${encodeURIComponent(status)}`;
+  try{
+    const res=await apiFetch(url);const data=await res.json().catch(()=>({}));
+    if(res.ok&&Array.isArray(data.orders)){adminOrders=data.orders;renderAdminOrders();return;}
+    adminOrders=[];renderAdminOrders();toast('✕',data.detail||'Không thể tải đơn hàng','error');
+  }catch(err){adminOrders=[];renderAdminOrders();if(err.message!=='Forbidden')toast('✕','Lỗi kết nối khi tải đơn hàng','error');}
+}
+
+async function changeOrderStatus(orderId,status) {
+  try{
+    const res=await apiFetch(`${API_ORDERS}/${encodeURIComponent(orderId)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+    const data=await res.json().catch(()=>({}));
+    if(res.ok&&data.ok){toast('✓','Đã cập nhật trạng thái đơn hàng','success');await loadAdminOrders();}
+    else toast('✕',data.detail||'Không thể cập nhật trạng thái','error');
+  }catch(err){if(err.message!=='Forbidden')toast('✕','Lỗi kết nối khi cập nhật trạng thái','error');}
+}
+
+async function deleteOrder(orderId) {
+  if(!confirm('Xóa đơn hàng này?'))return;
+  try{
+    const res=await apiFetch(`${API_ORDERS}/${encodeURIComponent(orderId)}`,{method:'DELETE'});const data=await res.json().catch(()=>({}));
+    if(res.ok&&data.ok){toast('✓','Đã xóa đơn hàng','success');await loadAdminOrders();}
+    else toast('✕',data.detail||'Xóa đơn hàng thất bại','error');
+  }catch(err){if(err.message!=='Forbidden')toast('✕','Lỗi kết nối khi xóa đơn hàng','error');}
 }
 
 // ─── USERS (ADMIN) ───
