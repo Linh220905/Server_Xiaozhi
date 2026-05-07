@@ -286,7 +286,15 @@ async def learning_flashcard(
         word_line_gap = max(2, h // 64)
         word_max_lines = 2 if is_small_card else 1
 
-        for size in range(max(118, int(h * 0.78)), max(40, int(h * 0.22)) - 1, -2):
+        # Adjust font size range für small cards (320x240)
+        if is_small_card:
+            word_start = max(32, int(h * 0.32))  # ~77px instead of 187px
+            word_min = max(18, int(h * 0.10))    # ~24px instead of 52px
+        else:
+            word_start = max(118, int(h * 0.78))
+            word_min = max(40, int(h * 0.22))
+        
+        for size in range(word_start, word_min - 1, -2):
             f = _pick_flashcard_font(size, bold=True)
             lines = _wrap_text_to_width(word_text, f, int(usable_w * 0.98), max_lines=word_max_lines)
             line_metrics = [draw.textbbox((0, 0), ln, font=f) for ln in lines]
@@ -308,7 +316,16 @@ async def learning_flashcard(
         meaning_lines: list[str] = [safe_meaning]
 
         meaning_max_lines = 1 if is_small_card else 2
-        for size in range(max(64, int(h * 0.42)), max(26, int(h * 0.15)) - 1, -2):
+        
+        # Adjust font size range für small cards (320x240)
+        if is_small_card:
+            meaning_start = max(18, int(h * 0.22))  # ~53px instead of 100px
+            meaning_min = max(12, int(h * 0.08))    # ~19px instead of 36px
+        else:
+            meaning_start = max(64, int(h * 0.42))
+            meaning_min = max(26, int(h * 0.15))
+        
+        for size in range(meaning_start, meaning_min - 1, -2):
             f = _pick_flashcard_font(size, bold=True)
             lines = _wrap_text_to_width(safe_meaning, f, usable_w, max_lines=meaning_max_lines)
             line_heights = []
@@ -324,7 +341,10 @@ async def learning_flashcard(
                 break
 
         if meaning_font is None:
-            meaning_font  = _pick_flashcard_font(max(26, int(h * 0.15)), bold=True)
+            if is_small_card:
+                meaning_font = _pick_flashcard_font(max(12, int(h * 0.08)), bold=True)
+            else:
+                meaning_font = _pick_flashcard_font(max(26, int(h * 0.15)), bold=True)
             meaning_lines = _wrap_text_to_width(safe_meaning, meaning_font, usable_w, max_lines=meaning_max_lines)
 
         # --- Vẽ word ---
