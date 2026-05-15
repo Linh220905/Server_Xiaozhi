@@ -111,6 +111,7 @@ class ConversationPipeline:
                 learning_context=learning_context,
                 on_tts_sentence=on_tts_sentence,
                 on_tts_audio=on_tts_audio,
+                on_learning_card=on_learning_card,
                 is_aborted=is_aborted,
             )
             if not is_aborted():
@@ -564,6 +565,7 @@ class ConversationPipeline:
         learning_context: dict[str, str | None],
         on_tts_sentence: Callable[[str], Awaitable[None]],
         on_tts_audio: Callable[[bytes], Awaitable[None]],
+        on_learning_card: Callable[[dict], Awaitable[None]] | None,
         is_aborted: Callable[[], bool],
     ) -> str:
         if self._looks_like_exit_learning_request(user_text):
@@ -599,6 +601,15 @@ class ConversationPipeline:
         matched_card = get_flashcard_by_word(matched_word) if matched_word else None
 
         if is_correct and matched_card:
+            if on_learning_card:
+                await on_learning_card(
+                    {
+                        "state": "award",
+                        "word": matched_card.get("word"),
+                        "meaning": matched_card.get("meaning_vi"),
+                        "image_url": "/static/asset/award.png",
+                    }
+                )
             if matched_word not in seen_words:
                 seen_words.append(matched_word)
             learning_context["seen_words"] = ",".join(seen_words)

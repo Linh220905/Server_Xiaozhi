@@ -632,6 +632,7 @@ async def _run_pipeline(ws: WebSocket, session: Session) -> None:
 
     async def on_learning_card(payload: dict) -> None:
         image_url = payload.get("image_url")
+        state = str(payload.get("state") or "flashcard")
         if isinstance(image_url, str) and image_url.startswith("/"):
             public_http_base = os.getenv("NEXUS_HTTP_BASE_URL", "").strip().rstrip("/")
             if public_http_base:
@@ -657,7 +658,7 @@ async def _run_pipeline(ws: WebSocket, session: Session) -> None:
         await safe_send_json(
             {
                 "type": "learning",
-                "state": "flashcard",
+                "state": state,
                 "word": payload.get("word"),
                 "meaning": payload.get("meaning"),
                 "image_url": image_url,
