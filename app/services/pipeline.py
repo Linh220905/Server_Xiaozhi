@@ -620,13 +620,13 @@ class ConversationPipeline:
             if len(seen_words) >= flashcard_count():
                 learning_context["finished"] = "1"
                 reply_text = (
-                    f"{feedback} Từ {matched_card.get('word')} nghĩa là {matched_card.get('meaning_vi')}. "
+                    f"Tuyệt vời! Từ {matched_card.get('word')} nghĩa là {matched_card.get('meaning_vi')}. "
                     f"{build_finish_reply()}"
                 )
                 self._clear_learning_context(learning_context)
             else:
                 reply_text = (
-                    f"{feedback} Từ {matched_card.get('word')} nghĩa là {matched_card.get('meaning_vi')}. "
+                    f"Tuyệt vời! Từ {matched_card.get('word')} nghĩa là {matched_card.get('meaning_vi')}. "
                     f"{build_next_card_prompt()}"
                 )
         else:
