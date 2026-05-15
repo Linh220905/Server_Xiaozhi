@@ -608,7 +608,7 @@ class ConversationPipeline:
                         "kind": "award",
                         "word": matched_card.get("word"),
                         "meaning": matched_card.get("meaning_vi"),
-                        "image_url": "/static/asset/award.png",
+                        "image_url": "/static/asset/award_320.png",
                     }
                 )
             if matched_word not in seen_words:
