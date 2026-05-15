@@ -11,26 +11,36 @@ from app.services.llm import LLMService
 
 
 DEMO_FLASHCARD_WORDS: list[dict[str, Any]] = [
+    {"word": "approve", "meaning_vi": "chấp thuận", "accepted_answers": ["approve"]},
+    {"word": "college", "meaning_vi": "trường cao đẳng/đại học", "accepted_answers": ["college"]},
+    {"word": "cost", "meaning_vi": "chi phí", "accepted_answers": ["cost"]},
+    {"word": "doctor", "meaning_vi": "bác sĩ", "accepted_answers": ["doctor"]},
+    {"word": "drink", "meaning_vi": "uống/đồ uống", "accepted_answers": ["drink"]},
+    {"word": "england", "meaning_vi": "nước Anh", "accepted_answers": ["england"]},
+    {"word": "hard", "meaning_vi": "khó/chăm chỉ", "accepted_answers": ["hard"]},
+    {"word": "history", "meaning_vi": "lịch sử", "accepted_answers": ["history"]},
+    {"word": "medical", "meaning_vi": "thuộc y tế", "accepted_answers": ["medical"]},
+    {"word": "plane", "meaning_vi": "máy bay", "accepted_answers": ["plane"]},
+    {"word": "read", "meaning_vi": "đọc", "accepted_answers": ["read"]},
+    {"word": "run", "meaning_vi": "chạy", "accepted_answers": ["run"]},
+    {"word": "serve", "meaning_vi": "phục vụ", "accepted_answers": ["serve"]},
+    {"word": "simple", "meaning_vi": "đơn giản", "accepted_answers": ["simple"]},
+    {"word": "somtimes", "meaning_vi": "thỉnh thoảng", "accepted_answers": ["somtimes", "sometimes"]},
+    {"word": "support", "meaning_vi": "hỗ trợ", "accepted_answers": ["support"]},
+    {"word": "test", "meaning_vi": "bài kiểm tra/kiểm tra", "accepted_answers": ["test"]},
+    {"word": "training", "meaning_vi": "sự đào tạo/luyện tập", "accepted_answers": ["training"]},
+    {"word": "view", "meaning_vi": "quan điểm/tầm nhìn", "accepted_answers": ["view"]},
+    {"word": "woman", "meaning_vi": "phụ nữ", "accepted_answers": ["woman"]},
+    {"word": "activity", "meaning_vi": "hoạt động", "accepted_answers": ["activity"]},
     {"word": "apple", "meaning_vi": "quả táo", "accepted_answers": ["apple"]},
-    {"word": "book", "meaning_vi": "quyển sách", "accepted_answers": ["book"]},
-    {"word": "school", "meaning_vi": "trường học", "accepted_answers": ["school"]},
-    {"word": "teacher", "meaning_vi": "giáo viên", "accepted_answers": ["teacher"]},
-    {"word": "student", "meaning_vi": "học sinh", "accepted_answers": ["student"]},
+    {"word": "equipment", "meaning_vi": "thiết bị", "accepted_answers": ["equipment"]},
     {"word": "family", "meaning_vi": "gia đình", "accepted_answers": ["family"]},
-    {"word": "water", "meaning_vi": "nước", "accepted_answers": ["water"]},
-    {"word": "happy", "meaning_vi": "vui vẻ", "accepted_answers": ["happy"]},
     {"word": "friend", "meaning_vi": "bạn bè", "accepted_answers": ["friend"]},
-    {"word": "house", "meaning_vi": "ngôi nhà", "accepted_answers": ["house"]},
-    {"word": "chair", "meaning_vi": "cái ghế", "accepted_answers": ["chair"]},
-    {"word": "table", "meaning_vi": "cái bàn", "accepted_answers": ["table"]},
-    {"word": "window", "meaning_vi": "cửa sổ", "accepted_answers": ["window"]},
-    {"word": "morning", "meaning_vi": "buổi sáng", "accepted_answers": ["morning"]},
-    {"word": "flower", "meaning_vi": "bông hoa", "accepted_answers": ["flower"]},
-    {"word": "orange", "meaning_vi": "quả cam", "accepted_answers": ["orange"]},
-    {"word": "banana", "meaning_vi": "quả chuối", "accepted_answers": ["banana"]},
-    {"word": "computer", "meaning_vi": "máy tính", "accepted_answers": ["computer"]},
-    {"word": "music", "meaning_vi": "âm nhạc", "accepted_answers": ["music"]},
-    {"word": "picture", "meaning_vi": "bức tranh", "accepted_answers": ["picture"]},
+    {"word": "happy", "meaning_vi": "vui vẻ", "accepted_answers": ["happy"]},
+    {"word": "intelligent", "meaning_vi": "thông minh", "accepted_answers": ["intelligent"]},
+    {"word": "school", "meaning_vi": "trường học", "accepted_answers": ["school"]},
+    {"word": "sister", "meaning_vi": "chị/em gái", "accepted_answers": ["sister"]},
+    {"word": "teacher", "meaning_vi": "giáo viên", "accepted_answers": ["teacher"]},
 ]
 
 
@@ -78,16 +88,16 @@ def get_flashcard_by_word(word: str) -> dict[str, Any] | None:
 def build_flashcard_start_reply() -> str:
     return (
         "Bạn hãy lấy flash card ra để chúng mình cùng luyện tập nào. "
-        "Con hãy chọn một thẻ bất kỳ và đọc từ tiếng Anh trên thẻ nhé."
+        "Bạn hãy chọn một thẻ bất kỳ và đọc từ tiếng Anh trên thẻ nhé."
     )
 
 
 def build_next_card_prompt() -> str:
-    return "Con chọn thẻ tiếp theo và đọc từ tiếng Anh trên thẻ nhé."
+    return "Bạn chọn thẻ tiếp theo và đọc từ tiếng Anh trên thẻ nhé."
 
 
 def build_finish_reply() -> str:
-    return "Mình đã luyện xong 20 từ hôm nay rồi. Con làm tốt lắm."
+    return f"Mình đã luyện xong {flashcard_count()} từ hôm nay rồi. Bạn làm tốt lắm."
 
 
 def _normalize_text(text: str) -> str:
@@ -119,11 +129,11 @@ def _fallback_evaluate(student_text: str, cards: list[dict[str, Any]]) -> dict[s
         "is_correct": is_correct,
         "heard_word": student_text.strip(),
         "matched_word": str(matched_card.get("word") or "").strip() if matched_card else "",
-        "confidence": 0.75 if is_correct else 0.35,
+        "Bạnfidence": 0.75 if is_correct else 0.35,
         "feedback_vi": (
-            "Đúng rồi, con đọc tốt lắm."
+            "Đúng rồi, Bạn đọc tốt lắm."
             if is_correct
-            else "Mình chưa nghe rõ từ trên thẻ. Con thử đọc lại chậm hơn nhé."
+            else "Mình chưa nghe rõ từ trên thẻ. Bạn thử đọc lại chậm hơn nhé."
         ),
     }
 

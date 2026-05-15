@@ -303,6 +303,7 @@ class ConversationPipeline:
                     on_tts_sentence=on_tts_sentence,
                     on_tts_audio=on_tts_audio,
                     is_aborted=is_aborted,
+                    language_hint="vi",
                 )
                 if not is_aborted():
                     await on_tts_stop()
@@ -521,10 +522,11 @@ class ConversationPipeline:
         on_tts_sentence: Callable[[str], Awaitable[None]],
         on_tts_audio: Callable[[bytes], Awaitable[None]],
         is_aborted: Callable[[], bool],
+        language_hint: str | None = None,
     ) -> None:
         await on_tts_sentence(text)
         await self._send_frames_with_pacing(
-            self._tts.synthesize(text),
+            self._tts.synthesize(text, language_hint=language_hint),
             on_tts_audio=on_tts_audio,
             is_aborted=is_aborted,
         )
@@ -572,6 +574,7 @@ class ConversationPipeline:
                 on_tts_sentence=on_tts_sentence,
                 on_tts_audio=on_tts_audio,
                 is_aborted=is_aborted,
+                language_hint="vi",
             )
             return reply_text
 
@@ -584,6 +587,7 @@ class ConversationPipeline:
                 on_tts_sentence=on_tts_sentence,
                 on_tts_audio=on_tts_audio,
                 is_aborted=is_aborted,
+                language_hint="vi",
             )
             return reply_text
 
@@ -631,6 +635,7 @@ class ConversationPipeline:
             on_tts_sentence=on_tts_sentence,
             on_tts_audio=on_tts_audio,
             is_aborted=is_aborted,
+            language_hint="vi",
         )
         return reply_text
 
