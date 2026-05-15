@@ -129,7 +129,7 @@ def _fallback_evaluate(student_text: str, cards: list[dict[str, Any]]) -> dict[s
         "is_correct": is_correct,
         "heard_word": student_text.strip(),
         "matched_word": str(matched_card.get("word") or "").strip() if matched_card else "",
-        "Bạnfidence": 0.75 if is_correct else 0.35,
+        "confidence": 0.75 if is_correct else 0.35,
         "feedback_vi": (
             "Đúng rồi, Bạn đọc tốt lắm."
             if is_correct
@@ -188,10 +188,11 @@ async def evaluate_flashcard_answer(
         return _fallback_evaluate(student_text, cards)
 
     fallback = _fallback_evaluate(student_text, cards)
+    fallback_confidence = _parse_float(fallback.get("confidence"), 0.75 if fallback.get("is_correct") else 0.35)
     return {
-        "is_correct": _parse_bool(data.get("is_correct"), bool(fallback["is_correct"])),
-        "heard_word": str(data.get("heard_word") or fallback["heard_word"]).strip(),
-        "matched_word": str(data.get("matched_word") or fallback["matched_word"]).strip().lower(),
-        "confidence": _parse_float(data.get("confidence"), float(fallback["confidence"])),
-        "feedback_vi": str(data.get("feedback_vi") or fallback["feedback_vi"]).strip(),
+        "is_correct": _parse_bool(data.get("is_correct"), bool(fallback.get("is_correct"))),
+        "heard_word": str(data.get("heard_word") or fallback.get("heard_word") or student_text).strip(),
+        "matched_word": str(data.get("matched_word") or fallback.get("matched_word") or "").strip().lower(),
+        "confidence": _parse_float(data.get("confidence"), fallback_confidence),
+        "feedback_vi": str(data.get("feedback_vi") or fallback.get("feedback_vi") or "").strip(),
     }

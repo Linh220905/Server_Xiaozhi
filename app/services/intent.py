@@ -32,6 +32,13 @@ def _normalize_vi_text(text: str) -> str:
     return re.sub(r"\s+", " ", without_marks).strip()
 
 
+def _normalize_music_song_name(song_name: str) -> str:
+    normalized = _normalize_vi_text(song_name)
+    if re.search(r"\bbaby\b", normalized):
+        return "baby shank"
+    return song_name
+
+
 @dataclass(slots=True)
 class IntentResult:
     intent: str
@@ -251,7 +258,7 @@ class IntentDetectorService:
             flags=re.IGNORECASE,
         )
         cleaned = re.sub(r"\s+", " ", cleaned).strip(" ,.!?\n\t")
-        song_name = cleaned if cleaned else "nhạc việt"
+        song_name = _normalize_music_song_name(cleaned if cleaned else "nhạc việt")
         return IntentResult(intent="music", song_name=song_name)
 
     async def detect(self, user_text: str) -> IntentResult:
@@ -268,7 +275,7 @@ class IntentDetectorService:
         intent = str(data.get("intent", "other")).strip().lower()
         # Map các intent và tham số
         if intent == "music":
-            song_name = str(data.get("song_name", "")).strip() or "nhạc việt"
+            song_name = _normalize_music_song_name(str(data.get("song_name", "")).strip() or "nhạc việt")
             return IntentResult(intent="music", song_name=song_name)
         if intent == "alarm":
             alarm_time = str(data.get("alarm_time", "")).strip()
