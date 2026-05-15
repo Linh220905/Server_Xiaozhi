@@ -106,6 +106,7 @@ class IntentDetectorService:
                 "hoc tu moi",
                 "hoc tu vat",
                 "tu vat",
+                "toi muon hoc tu",
                 "toi muon hoc tu vat",
                 "flash card",
                 "flashcard",
