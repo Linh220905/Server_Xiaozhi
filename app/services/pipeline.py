@@ -604,7 +604,8 @@ class ConversationPipeline:
             if on_learning_card:
                 await on_learning_card(
                     {
-                        "state": "award",
+                        "state": "flashcard",
+                        "kind": "award",
                         "word": matched_card.get("word"),
                         "meaning": matched_card.get("meaning_vi"),
                         "image_url": "/static/asset/award.png",
