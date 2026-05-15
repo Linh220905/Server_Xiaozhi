@@ -52,8 +52,11 @@ Bạn nhận:
 
 Nhiệm vụ:
 - Xác định học sinh có đọc đúng một từ nào trong candidate_words không.
-- Chấp nhận lỗi viết hoa/thường, dấu câu, và STT có thêm vài từ đệm như "là", "con đọc là".
+- Chấp nhận lỗi viết hoa/thường, dấu câu, và STT có thêm vài từ đệm như "là", "bạn đọc là".
 - Nếu STT nghe gần âm nhưng chưa chắc đúng, trả is_correct=false và feedback chung, không nói học sinh sai từ cụ thể nào.
+- Nếu student_stt không khớp candidate_words, không được nói "không có trong danh sách" hoặc "không nằm trong bộ từ".
+  Nếu student_stt vẫn là một từ tiếng Anh đúng chính tả, hãy điền unknown_word và unknown_meaning_vi bằng nghĩa tiếng Việt ngắn gọn.
+  Feedback khi đó nên giải thích nghĩa của unknown_word và mời học sinh đọc thẻ tiếp theo.
 - Phản hồi ngắn, thân thiện, bằng tiếng Việt cho trẻ em.
 
 Chỉ trả về 1 JSON object, không markdown:
@@ -61,6 +64,8 @@ Chỉ trả về 1 JSON object, không markdown:
   "is_correct": true|false,
   "heard_word": "",
   "matched_word": "",
+  "unknown_word": "",
+  "unknown_meaning_vi": "",
   "confidence": 0.0,
   "feedback_vi": ""
 }
@@ -129,11 +134,13 @@ def _fallback_evaluate(student_text: str, cards: list[dict[str, Any]]) -> dict[s
         "is_correct": is_correct,
         "heard_word": student_text.strip(),
         "matched_word": str(matched_card.get("word") or "").strip() if matched_card else "",
+        "unknown_word": "" if matched_card else _extract_likely_english_word(student_text, cards),
+        "unknown_meaning_vi": "",
         "confidence": 0.75 if is_correct else 0.35,
         "feedback_vi": (
-            "Đúng rồi, Bạn đọc tốt lắm."
+            "Đúng rồi, bạn đọc tốt lắm."
             if is_correct
-            else "Mình chưa nghe rõ từ trên thẻ. Bạn thử đọc lại chậm hơn nhé."
+            else ""
         ),
     }
 
@@ -155,6 +162,49 @@ def _parse_float(value: Any, default: float) -> float:
         return float(value)
     except Exception:
         return default
+
+
+def _extract_likely_english_word(student_text: str, cards: list[dict[str, Any]]) -> str:
+    normalized_words = {_normalize_text(str(card.get("word") or "")) for card in cards}
+    stop_words = {
+        "toi", "minh", "ban", "doc", "la", "tu", "nay", "the", "tren", "word",
+        "read", "it", "is", "the", "a", "an",
+    }
+    for token in re.findall(r"[A-Za-z]{2,}", student_text or ""):
+        normalized = _normalize_text(token)
+        if normalized and normalized not in stop_words and normalized not in normalized_words:
+            return token.strip().lower()
+    return ""
+
+
+def _sanitize_feedback(feedback: str, *, is_correct: bool) -> str:
+    text = (feedback or "").strip()
+    if is_correct:
+        return text or "Đúng rồi, bạn đọc tốt lắm."
+
+    lowered = text.lower()
+    blocked_phrases = (
+        "không có trong danh sách",
+        "khong co trong danh sach",
+        "không nằm trong danh sách",
+        "khong nam trong danh sach",
+        "không nằm trong bộ từ",
+        "khong nam trong bo tu",
+        "không có trong bộ từ",
+        "khong co trong bo tu",
+        "candidate_words",
+    )
+    if not text or any(phrase in lowered for phrase in blocked_phrases):
+        return "Bạn đọc lại từ trên thẻ một lần nữa nhé."
+    return text
+
+
+def _build_unknown_word_feedback(word: str, meaning: str) -> str:
+    if word and meaning:
+        return f"Từ {word} nghĩa là {meaning}. Bạn chọn thẻ tiếp theo và đọc từ tiếng Anh trên thẻ nhé."
+    if word:
+        return f"Từ {word} là một từ tiếng Anh. Bạn chọn thẻ tiếp theo và đọc từ tiếng Anh trên thẻ nhé."
+    return "Bạn đọc lại từ trên thẻ một lần nữa nhé."
 
 
 async def evaluate_flashcard_answer(
@@ -189,10 +239,19 @@ async def evaluate_flashcard_answer(
 
     fallback = _fallback_evaluate(student_text, cards)
     fallback_confidence = _parse_float(fallback.get("confidence"), 0.75 if fallback.get("is_correct") else 0.35)
+    is_correct = _parse_bool(data.get("is_correct"), bool(fallback.get("is_correct")))
+    feedback = str(data.get("feedback_vi") or fallback.get("feedback_vi") or "").strip()
+    unknown_word = str(data.get("unknown_word") or fallback.get("unknown_word") or "").strip().lower()
+    unknown_meaning_vi = str(data.get("unknown_meaning_vi") or fallback.get("unknown_meaning_vi") or "").strip()
+    matched_word = str(data.get("matched_word") or fallback.get("matched_word") or "").strip().lower()
+    if not is_correct and not matched_word and unknown_word:
+        feedback = _build_unknown_word_feedback(unknown_word, unknown_meaning_vi)
     return {
-        "is_correct": _parse_bool(data.get("is_correct"), bool(fallback.get("is_correct"))),
+        "is_correct": is_correct,
         "heard_word": str(data.get("heard_word") or fallback.get("heard_word") or student_text).strip(),
-        "matched_word": str(data.get("matched_word") or fallback.get("matched_word") or "").strip().lower(),
+        "matched_word": matched_word,
+        "unknown_word": unknown_word,
+        "unknown_meaning_vi": unknown_meaning_vi,
         "confidence": _parse_float(data.get("confidence"), fallback_confidence),
-        "feedback_vi": str(data.get("feedback_vi") or fallback.get("feedback_vi") or "").strip(),
+        "feedback_vi": _sanitize_feedback(feedback, is_correct=is_correct),
     }

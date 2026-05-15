@@ -570,7 +570,7 @@ class ConversationPipeline:
     ) -> str:
         if self._looks_like_exit_learning_request(user_text):
             self._clear_learning_context(learning_context)
-            reply_text = "Đã dừng luyện flash card. Khi nào muốn học tiếp, con nói học từ vựng nhé."
+            reply_text = "Đã dừng luyện flash card. Khi nào muốn học tiếp, bạn nói học từ vựng nhé."
             await self._speak_text(
                 reply_text,
                 on_tts_sentence=on_tts_sentence,
@@ -631,15 +631,28 @@ class ConversationPipeline:
         else:
             attempts += 1
             learning_context["attempt_count"] = str(attempts)
-            if attempts >= 3:
+            unknown_word = str(evaluation.get("unknown_word") or "").strip()
+            unknown_meaning_vi = str(evaluation.get("unknown_meaning_vi") or "").strip()
+            if unknown_word:
+                learning_context["attempt_count"] = "0"
+                if unknown_meaning_vi:
+                    reply_text = (
+                        f"Từ {unknown_word} nghĩa là {unknown_meaning_vi}. "
+                        f"{build_next_card_prompt()}"
+                    )
+                else:
+                    reply_text = (
+                        f"Từ {unknown_word} là một từ tiếng Anh. "
+                        f"{build_next_card_prompt()}"
+                    )
+            elif attempts >= 3:
                 learning_context["attempt_count"] = "0"
                 reply_text = (
-                    "Mình vẫn chưa nghe rõ từ trên thẻ. "
-                    "Con đổi sang một thẻ khác hoặc đọc lại chậm hơn nhé."
+                    "Bạn đổi sang một thẻ khác hoặc đọc lại chậm hơn nhé."
                 )
             else:
                 reply_text = (
-                    f"{feedback} Con nhìn lại thẻ và đọc lại một lần nữa nhé."
+                    f"{feedback} Bạn nhìn lại thẻ và đọc lại một lần nữa nhé."
                 )
 
         await self._speak_text(
