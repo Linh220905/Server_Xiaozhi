@@ -114,7 +114,7 @@ class IntentDetectorService:
                 "on tu vung",
                 "luyen tu vung",
             )
-        ):
+        ) or re.search(r"\bflash[a-z0-9]*\b", normalized):
             return IntentResult(intent="flashcard_vocab", learning_mode="flashcard_vocab")
 
         # 3. Learning conversation intent.
