@@ -64,6 +64,7 @@ class Session:
             "locked": "0",
             "lock_target_index": "0",
             "attempt_count": "0",
+            "seen_words": "",
         }
 
         self._max_history = config.max_chat_history

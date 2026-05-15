@@ -37,20 +37,20 @@ DEMO_FLASHCARD_WORDS: list[dict[str, Any]] = [
 FLASHCARD_EVALUATION_PROMPT = """Bạn là giáo viên tiếng Anh kiểm tra học sinh đọc từ vựng trên flash card vật lí.
 
 Bạn nhận:
-- target_word: từ đúng trên thẻ.
-- accepted_answers: các đáp án có thể chấp nhận.
+- candidate_words: danh sách từ vựng có trong bộ flash card.
 - student_stt: nội dung STT nghe được từ học sinh.
 
 Nhiệm vụ:
-- Đánh giá student_stt có phải học sinh đã đọc đúng target_word không.
+- Xác định học sinh có đọc đúng một từ nào trong candidate_words không.
 - Chấp nhận lỗi viết hoa/thường, dấu câu, và STT có thêm vài từ đệm như "là", "con đọc là".
-- Nếu STT nghe gần âm nhưng chưa chắc đúng, trả is_correct=false và feedback sửa nhẹ.
+- Nếu STT nghe gần âm nhưng chưa chắc đúng, trả is_correct=false và feedback chung, không nói học sinh sai từ cụ thể nào.
 - Phản hồi ngắn, thân thiện, bằng tiếng Việt cho trẻ em.
 
 Chỉ trả về 1 JSON object, không markdown:
 {
   "is_correct": true|false,
   "heard_word": "",
+  "matched_word": "",
   "confidence": 0.0,
   "feedback_vi": ""
 }
@@ -67,15 +67,23 @@ def get_flashcard(index: int) -> dict[str, Any] | None:
     return None
 
 
+def get_flashcard_by_word(word: str) -> dict[str, Any] | None:
+    normalized_word = _normalize_text(word)
+    for card in DEMO_FLASHCARD_WORDS:
+        if _normalize_text(str(card.get("word") or "")) == normalized_word:
+            return card
+    return None
+
+
 def build_flashcard_start_reply() -> str:
     return (
         "Bạn hãy lấy flash card ra để chúng mình cùng luyện tập nào. "
-        "Con hãy nhìn thẻ số 1 và đọc từ tiếng Anh trên thẻ nhé."
+        "Con hãy chọn một thẻ bất kỳ và đọc từ tiếng Anh trên thẻ nhé."
     )
 
 
-def build_next_card_prompt(index: int) -> str:
-    return f"Bây giờ con đọc từ trên thẻ số {index + 1} nhé."
+def build_next_card_prompt() -> str:
+    return "Con chọn thẻ tiếp theo và đọc từ tiếng Anh trên thẻ nhé."
 
 
 def build_finish_reply() -> str:
@@ -90,26 +98,32 @@ def _normalize_text(text: str) -> str:
     return re.sub(r"[^a-z0-9 ]+", " ", without_marks).strip()
 
 
-def _fallback_evaluate(student_text: str, card: dict[str, Any]) -> dict[str, Any]:
+def _fallback_evaluate(student_text: str, cards: list[dict[str, Any]]) -> dict[str, Any]:
     normalized = _normalize_text(student_text)
-    accepted = [
-        _normalize_text(str(answer))
-        for answer in card.get("accepted_answers", [])
-        if str(answer).strip()
-    ]
-    target = _normalize_text(str(card.get("word") or ""))
-    if target and target not in accepted:
-        accepted.append(target)
+    matched_card = None
+    for card in cards:
+        accepted = [
+            _normalize_text(str(answer))
+            for answer in card.get("accepted_answers", [])
+            if str(answer).strip()
+        ]
+        target = _normalize_text(str(card.get("word") or ""))
+        if target and target not in accepted:
+            accepted.append(target)
+        if any(answer and re.search(rf"\b{re.escape(answer)}\b", normalized) for answer in accepted):
+            matched_card = card
+            break
 
-    is_correct = any(answer and re.search(rf"\b{re.escape(answer)}\b", normalized) for answer in accepted)
+    is_correct = matched_card is not None
     return {
         "is_correct": is_correct,
         "heard_word": student_text.strip(),
+        "matched_word": str(matched_card.get("word") or "").strip() if matched_card else "",
         "confidence": 0.75 if is_correct else 0.35,
         "feedback_vi": (
             "Đúng rồi, con đọc tốt lắm."
             if is_correct
-            else f"Mình nghe chưa giống từ {card.get('word')}. Con thử đọc lại chậm hơn nhé."
+            else "Mình chưa nghe rõ từ trên thẻ. Con thử đọc lại chậm hơn nhé."
         ),
     }
 
@@ -137,11 +151,17 @@ async def evaluate_flashcard_answer(
     llm: LLMService,
     *,
     student_text: str,
-    card: dict[str, Any],
+    cards: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    cards = cards or DEMO_FLASHCARD_WORDS
     payload = {
-        "target_word": card.get("word"),
-        "accepted_answers": card.get("accepted_answers") or [card.get("word")],
+        "candidate_words": [
+            {
+                "word": card.get("word"),
+                "accepted_answers": card.get("accepted_answers") or [card.get("word")],
+            }
+            for card in cards
+        ],
         "student_stt": student_text,
     }
     try:
@@ -155,12 +175,13 @@ async def evaluate_flashcard_answer(
         data = None
 
     if not isinstance(data, dict):
-        return _fallback_evaluate(student_text, card)
+        return _fallback_evaluate(student_text, cards)
 
-    fallback = _fallback_evaluate(student_text, card)
+    fallback = _fallback_evaluate(student_text, cards)
     return {
         "is_correct": _parse_bool(data.get("is_correct"), bool(fallback["is_correct"])),
         "heard_word": str(data.get("heard_word") or fallback["heard_word"]).strip(),
+        "matched_word": str(data.get("matched_word") or fallback["matched_word"]).strip().lower(),
         "confidence": _parse_float(data.get("confidence"), float(fallback["confidence"])),
         "feedback_vi": str(data.get("feedback_vi") or fallback["feedback_vi"]).strip(),
     }

@@ -32,7 +32,7 @@ from app.services.flashcard_vocab import (
     build_next_card_prompt,
     evaluate_flashcard_answer,
     flashcard_count,
-    get_flashcard,
+    get_flashcard_by_word,
 )
 
 logger = get_logger(__name__)
@@ -538,6 +538,7 @@ class ConversationPipeline:
         learning_context["locked"] = "0"
         learning_context["lock_target_index"] = "0"
         learning_context["attempt_count"] = "0"
+        learning_context["seen_words"] = ""
 
     @staticmethod
     def _clear_learning_context(learning_context: dict[str, str | None]) -> None:
@@ -548,6 +549,7 @@ class ConversationPipeline:
         learning_context["locked"] = "0"
         learning_context["lock_target_index"] = "0"
         learning_context["attempt_count"] = "0"
+        learning_context["seen_words"] = ""
 
     @staticmethod
     def _is_flashcard_vocab_active(learning_context: dict[str, str | None]) -> bool:
@@ -573,9 +575,8 @@ class ConversationPipeline:
             )
             return reply_text
 
-        index = self._context_next_index(learning_context)
-        card = get_flashcard(index)
-        if card is None:
+        seen_words = self._context_seen_words(learning_context)
+        if len(seen_words) >= flashcard_count():
             self._clear_learning_context(learning_context)
             reply_text = build_finish_reply()
             await self._speak_text(
@@ -586,53 +587,43 @@ class ConversationPipeline:
             )
             return reply_text
 
-        evaluation = await evaluate_flashcard_answer(
-            self._llm,
-            student_text=user_text,
-            card=card,
-        )
+        evaluation = await evaluate_flashcard_answer(self._llm, student_text=user_text)
         attempts = self._context_attempt_count(learning_context)
         feedback = str(evaluation.get("feedback_vi") or "").strip()
         is_correct = bool(evaluation.get("is_correct"))
+        matched_word = str(evaluation.get("matched_word") or "").strip().lower()
+        matched_card = get_flashcard_by_word(matched_word) if matched_word else None
 
-        if is_correct:
-            next_index = index + 1
-            learning_context["next_index"] = str(next_index)
+        if is_correct and matched_card:
+            if matched_word not in seen_words:
+                seen_words.append(matched_word)
+            learning_context["seen_words"] = ",".join(seen_words)
+            learning_context["next_index"] = str(len(seen_words))
             learning_context["attempt_count"] = "0"
-            if next_index >= flashcard_count():
+            if len(seen_words) >= flashcard_count():
                 learning_context["finished"] = "1"
                 reply_text = (
-                    f"{feedback} Từ {card.get('word')} nghĩa là {card.get('meaning_vi')}. "
+                    f"{feedback} Từ {matched_card.get('word')} nghĩa là {matched_card.get('meaning_vi')}. "
                     f"{build_finish_reply()}"
                 )
                 self._clear_learning_context(learning_context)
             else:
                 reply_text = (
-                    f"{feedback} Từ {card.get('word')} nghĩa là {card.get('meaning_vi')}. "
-                    f"{build_next_card_prompt(next_index)}"
+                    f"{feedback} Từ {matched_card.get('word')} nghĩa là {matched_card.get('meaning_vi')}. "
+                    f"{build_next_card_prompt()}"
                 )
         else:
             attempts += 1
             learning_context["attempt_count"] = str(attempts)
             if attempts >= 3:
-                next_index = index + 1
-                learning_context["next_index"] = str(next_index)
                 learning_context["attempt_count"] = "0"
-                if next_index >= flashcard_count():
-                    learning_context["finished"] = "1"
-                    reply_text = (
-                        f"Từ đúng là {card.get('word')}, nghĩa là {card.get('meaning_vi')}. "
-                        f"{build_finish_reply()}"
-                    )
-                    self._clear_learning_context(learning_context)
-                else:
-                    reply_text = (
-                        f"Từ đúng là {card.get('word')}, nghĩa là {card.get('meaning_vi')}. "
-                        f"Mình chuyển sang thẻ tiếp theo nhé. {build_next_card_prompt(next_index)}"
-                    )
+                reply_text = (
+                    "Mình vẫn chưa nghe rõ từ trên thẻ. "
+                    "Con đổi sang một thẻ khác hoặc đọc lại chậm hơn nhé."
+                )
             else:
                 reply_text = (
-                    f"{feedback} Con nhìn lại thẻ số {index + 1} và đọc lại một lần nữa nhé."
+                    f"{feedback} Con nhìn lại thẻ và đọc lại một lần nữa nhé."
                 )
 
         await self._speak_text(
@@ -780,6 +771,11 @@ class ConversationPipeline:
             return max(0, int(raw))
         except Exception:
             return 0
+
+    @staticmethod
+    def _context_seen_words(learning_context: dict[str, str | None]) -> list[str]:
+        raw = str(learning_context.get("seen_words") or "").strip()
+        return [word.strip().lower() for word in raw.split(",") if word.strip()]
 
     async def _detect_and_handle_music_intent(
         self,
