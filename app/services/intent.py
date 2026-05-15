@@ -1,7 +1,10 @@
-"""Intent detection service cho điều khiển nhạc.
+"""Intent detection service cho điều khiển nhanh.
 
 Phân loại:
 - music: người dùng muốn mở/phát nhạc
+- alarm/set_volume/set_brightness/reboot/assignment: lệnh nhanh
+- flashcard_vocab: luyện từ vựng bằng flash card vật lí
+- learning_conversation: luyện hội thoại theo chủ đề
 - other: còn lại
 """
 
@@ -43,7 +46,7 @@ class IntentResult:
 
 
 class IntentDetectorService:
-    """Dùng 1 LLM riêng để detect intent phát nhạc."""
+    """Dùng 1 LLM riêng để detect intent điều khiển nhanh."""
 
     def __init__(self, llm: LLMService):
         self._llm = llm
@@ -87,28 +90,26 @@ class IntentDetectorService:
                     brightness = 100 if action == "tăng" else 0
                 return IntentResult(intent="set_brightness", brightness=brightness)
 
-        # 2. Music intent
+        # 2. Physical flash card vocabulary practice.
         if any(
             k in normalized
             for k in (
                 "hoc tu vung",
                 "tu vung",
                 "hoc tu moi",
-                "hoc tu vat",
-                "tu vat",
-                "hoc tu van",
-                "tu van",
-                "hoc tu vuong",
-                "hoc chu de",
+                "flash card",
+                "flashcard",
+                "the tu vung",
+                "the hoc tu",
+                "on tu vung",
+                "luyen tu vung",
             )
         ):
-            topic = find_topic("vocabulary", normalized)
-            return IntentResult(
-                intent="learning_vocab",
-                learning_mode="vocabulary",
-                topic_id=str(topic.get("id")) if topic else None,
-            )
+            return IntentResult(intent="flashcard_vocab", learning_mode="flashcard_vocab")
 
+        # 3. Learning conversation intent.
+        # Luồng học từ vựng theo chủ đề vẫn còn trong learning_content/pipeline,
+        # nhưng không còn được kích hoạt bằng intent giọng nói ở đây.
         if any(k in normalized for k in ("hoi thoai", "luyen noi", "giao tiep")):
             topic = find_topic("conversation", normalized)
             return IntentResult(
@@ -131,14 +132,13 @@ class IntentDetectorService:
         ):
             return IntentResult(intent="assignment", assignment_requested=True)
 
-        for mode in ("vocabulary", "conversation"):
-            topic = find_topic(mode, normalized)
-            if topic:
-                return IntentResult(
-                    intent="learning_topic",
-                    learning_mode=mode,
-                    topic_id=str(topic.get("id")),
-                )
+        topic = find_topic("conversation", normalized)
+        if topic:
+            return IntentResult(
+                intent="learning_topic",
+                learning_mode="conversation",
+                topic_id=str(topic.get("id")),
+            )
 
         trigger_words = (
             "mở",
@@ -285,15 +285,18 @@ class IntentDetectorService:
             return IntentResult(intent="set_brightness", brightness=brightness)
         if intent == "reboot":
             return IntentResult(intent="reboot")
+        if intent == "flashcard_vocab":
+            return IntentResult(intent="flashcard_vocab", learning_mode="flashcard_vocab")
         if intent == "learning_vocab":
-            topic_id = str(data.get("topic_id", "")).strip() or None
-            return IntentResult(intent="learning_vocab", learning_mode="vocabulary", topic_id=topic_id)
+            return IntentResult(intent="other")
         if intent == "learning_conversation":
             topic_id = str(data.get("topic_id", "")).strip() or None
             return IntentResult(intent="learning_conversation", learning_mode="conversation", topic_id=topic_id)
         if intent == "learning_topic":
             learning_mode = str(data.get("learning_mode", "")).strip() or None
             topic_id = str(data.get("topic_id", "")).strip() or None
+            if learning_mode != "conversation":
+                return IntentResult(intent="other")
             return IntentResult(intent="learning_topic", learning_mode=learning_mode, topic_id=topic_id)
         if intent == "assignment":
             return IntentResult(intent="assignment", assignment_requested=True)
@@ -315,28 +318,27 @@ class IntentDetectorService:
         topic_id = str(data.get("topic_id", "")).strip().lower() or None
         topic_name = str(data.get("topic_name", "")).strip()
 
-        if learning_mode not in {None, "vocabulary", "conversation"}:
+        if learning_mode not in {None, "conversation"}:
             learning_mode = None
 
         if topic_id is None:
             # Cho phép LLM trả topic_name thay vì topic_id và tự map lại phía server.
-            if learning_mode in {"vocabulary", "conversation"} and topic_name:
+            if learning_mode == "conversation" and topic_name:
                 topic = find_topic(learning_mode, topic_name)
                 if topic:
                     topic_id = str(topic.get("id") or "").strip().lower() or None
-            if topic_id is None and learning_mode in {"vocabulary", "conversation"}:
+            if topic_id is None and learning_mode == "conversation":
                 topic = find_topic(learning_mode, user_text)
                 if topic:
                     topic_id = str(topic.get("id") or "").strip().lower() or None
 
         if intent == "learning_vocab":
-            return IntentResult(intent="learning_vocab", learning_mode="vocabulary", topic_id=topic_id)
+            return IntentResult(intent="other")
         if intent == "learning_conversation":
             return IntentResult(intent="learning_conversation", learning_mode="conversation", topic_id=topic_id)
         if intent == "learning_topic":
-            # Nếu LLM quên mode nhưng có topic thì mặc định vocabulary cho luồng học từ vựng.
-            if learning_mode not in {"vocabulary", "conversation"}:
-                learning_mode = "vocabulary"
+            if learning_mode != "conversation":
+                return IntentResult(intent="other")
             return IntentResult(intent="learning_topic", learning_mode=learning_mode, topic_id=topic_id)
 
         return IntentResult(intent="other")

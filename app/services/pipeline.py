@@ -26,6 +26,14 @@ from app.services.learning_content import (
     find_topic,
     get_topic_by_id,
 )
+from app.services.flashcard_vocab import (
+    build_finish_reply,
+    build_flashcard_start_reply,
+    build_next_card_prompt,
+    evaluate_flashcard_answer,
+    flashcard_count,
+    get_flashcard,
+)
 
 logger = get_logger(__name__)
 
@@ -95,6 +103,19 @@ class ConversationPipeline:
 
         logger.info(f"\033[92m🎤 User: {user_text}\033[0m")
         await on_stt_result(user_text)
+
+        if learning_context and self._is_flashcard_vocab_active(learning_context):
+            await on_tts_start()
+            reply_text = await self._handle_flashcard_vocab_turn(
+                user_text,
+                learning_context=learning_context,
+                on_tts_sentence=on_tts_sentence,
+                on_tts_audio=on_tts_audio,
+                is_aborted=is_aborted,
+            )
+            if not is_aborted():
+                await on_tts_stop()
+            return (user_text, reply_text)
 
         # Nếu đã vào mode học theo chủ đề (locked), ưu tiên chạy tiếp flow hiện tại,
         # tránh nhảy intent do STT nhiễu.
@@ -176,15 +197,15 @@ class ConversationPipeline:
             fast_intent = self._intent_detector.detect_fast(user_text)
             resolved_intent = fast_intent
 
-            # Ưu tiên LLM cho learning intent (chấp nhận chậm hơn) để chịu lỗi STT tốt hơn.
-            if self._looks_like_learning_request(user_text) or fast_intent.intent in {
-                "learning_vocab",
+            # Ưu tiên LLM cho intent luyện hội thoại để chịu lỗi STT tốt hơn.
+            # Học từ vựng theo chủ đề không còn được kích hoạt bằng intent giọng nói.
+            if self._looks_like_learning_conversation_request(user_text) or fast_intent.intent in {
                 "learning_conversation",
                 "learning_topic",
             }:
                 try:
                     llm_intent = await self._intent_detector.detect_learning_intent(user_text)
-                    if llm_intent.intent in {"learning_vocab", "learning_conversation", "learning_topic"}:
+                    if llm_intent.intent in {"learning_conversation", "learning_topic"}:
                         resolved_intent = llm_intent
                 except Exception as e:
                     logger.warning("LLM learning intent fallback failed: %s", e)
@@ -215,7 +236,10 @@ class ConversationPipeline:
                         await on_tts_stop()
                     return (user_text, reply_text)
 
-            if resolved_intent.intent in {"learning_vocab", "learning_conversation", "learning_topic"}:
+            if resolved_intent.intent == "learning_conversation" or (
+                resolved_intent.intent == "learning_topic"
+                and resolved_intent.learning_mode == "conversation"
+            ):
                 await on_tts_start()
                 mode, selected_topic, reply_text = self._handle_learning_intent(
                     user_text,
@@ -265,6 +289,21 @@ class ConversationPipeline:
                         on_tts_audio=on_tts_audio,
                         is_aborted=is_aborted,
                     )
+                if not is_aborted():
+                    await on_tts_stop()
+                return (user_text, reply_text)
+
+            if resolved_intent.intent == "flashcard_vocab":
+                await on_tts_start()
+                if learning_context is not None:
+                    self._start_flashcard_vocab_context(learning_context)
+                reply_text = build_flashcard_start_reply()
+                await self._speak_text(
+                    reply_text,
+                    on_tts_sentence=on_tts_sentence,
+                    on_tts_audio=on_tts_audio,
+                    is_aborted=is_aborted,
+                )
                 if not is_aborted():
                     await on_tts_stop()
                 return (user_text, reply_text)
@@ -475,6 +514,135 @@ class ConversationPipeline:
             return (mode, None, build_mode_suggestion("conversation"))
         return (None, None, "Mình đã sẵn sàng học theo chủ đề. Bạn muốn học từ vựng hay luyện hội thoại trước?")
 
+    async def _speak_text(
+        self,
+        text: str,
+        *,
+        on_tts_sentence: Callable[[str], Awaitable[None]],
+        on_tts_audio: Callable[[bytes], Awaitable[None]],
+        is_aborted: Callable[[], bool],
+    ) -> None:
+        await on_tts_sentence(text)
+        await self._send_frames_with_pacing(
+            self._tts.synthesize(text),
+            on_tts_audio=on_tts_audio,
+            is_aborted=is_aborted,
+        )
+
+    @staticmethod
+    def _start_flashcard_vocab_context(learning_context: dict[str, str | None]) -> None:
+        learning_context["mode"] = "flashcard_vocab"
+        learning_context["topic_id"] = None
+        learning_context["next_index"] = "0"
+        learning_context["finished"] = "0"
+        learning_context["locked"] = "0"
+        learning_context["lock_target_index"] = "0"
+        learning_context["attempt_count"] = "0"
+
+    @staticmethod
+    def _clear_learning_context(learning_context: dict[str, str | None]) -> None:
+        learning_context["mode"] = None
+        learning_context["topic_id"] = None
+        learning_context["next_index"] = "0"
+        learning_context["finished"] = "0"
+        learning_context["locked"] = "0"
+        learning_context["lock_target_index"] = "0"
+        learning_context["attempt_count"] = "0"
+
+    @staticmethod
+    def _is_flashcard_vocab_active(learning_context: dict[str, str | None]) -> bool:
+        return str(learning_context.get("mode") or "").strip() == "flashcard_vocab"
+
+    async def _handle_flashcard_vocab_turn(
+        self,
+        user_text: str,
+        *,
+        learning_context: dict[str, str | None],
+        on_tts_sentence: Callable[[str], Awaitable[None]],
+        on_tts_audio: Callable[[bytes], Awaitable[None]],
+        is_aborted: Callable[[], bool],
+    ) -> str:
+        if self._looks_like_exit_learning_request(user_text):
+            self._clear_learning_context(learning_context)
+            reply_text = "Đã dừng luyện flash card. Khi nào muốn học tiếp, con nói học từ vựng nhé."
+            await self._speak_text(
+                reply_text,
+                on_tts_sentence=on_tts_sentence,
+                on_tts_audio=on_tts_audio,
+                is_aborted=is_aborted,
+            )
+            return reply_text
+
+        index = self._context_next_index(learning_context)
+        card = get_flashcard(index)
+        if card is None:
+            self._clear_learning_context(learning_context)
+            reply_text = build_finish_reply()
+            await self._speak_text(
+                reply_text,
+                on_tts_sentence=on_tts_sentence,
+                on_tts_audio=on_tts_audio,
+                is_aborted=is_aborted,
+            )
+            return reply_text
+
+        evaluation = await evaluate_flashcard_answer(
+            self._llm,
+            student_text=user_text,
+            card=card,
+        )
+        attempts = self._context_attempt_count(learning_context)
+        feedback = str(evaluation.get("feedback_vi") or "").strip()
+        is_correct = bool(evaluation.get("is_correct"))
+
+        if is_correct:
+            next_index = index + 1
+            learning_context["next_index"] = str(next_index)
+            learning_context["attempt_count"] = "0"
+            if next_index >= flashcard_count():
+                learning_context["finished"] = "1"
+                reply_text = (
+                    f"{feedback} Từ {card.get('word')} nghĩa là {card.get('meaning_vi')}. "
+                    f"{build_finish_reply()}"
+                )
+                self._clear_learning_context(learning_context)
+            else:
+                reply_text = (
+                    f"{feedback} Từ {card.get('word')} nghĩa là {card.get('meaning_vi')}. "
+                    f"{build_next_card_prompt(next_index)}"
+                )
+        else:
+            attempts += 1
+            learning_context["attempt_count"] = str(attempts)
+            if attempts >= 3:
+                next_index = index + 1
+                learning_context["next_index"] = str(next_index)
+                learning_context["attempt_count"] = "0"
+                if next_index >= flashcard_count():
+                    learning_context["finished"] = "1"
+                    reply_text = (
+                        f"Từ đúng là {card.get('word')}, nghĩa là {card.get('meaning_vi')}. "
+                        f"{build_finish_reply()}"
+                    )
+                    self._clear_learning_context(learning_context)
+                else:
+                    reply_text = (
+                        f"Từ đúng là {card.get('word')}, nghĩa là {card.get('meaning_vi')}. "
+                        f"Mình chuyển sang thẻ tiếp theo nhé. {build_next_card_prompt(next_index)}"
+                    )
+            else:
+                reply_text = (
+                    f"{feedback} Con nhìn lại thẻ số {index + 1} và đọc lại một lần nữa nhé."
+                )
+
+        await self._speak_text(
+            reply_text,
+            on_tts_sentence=on_tts_sentence,
+            on_tts_audio=on_tts_audio,
+            is_aborted=is_aborted,
+        )
+        return reply_text
+
     async def _teach_vocabulary_stepwise(
         self,
         topic: dict,
@@ -511,19 +679,15 @@ class ConversationPipeline:
         return (" ".join(spoken_lines).strip(), next_index, total_words)
 
     @staticmethod
-    def _looks_like_learning_request(text: str) -> bool:
+    def _looks_like_learning_conversation_request(text: str) -> bool:
         lowered = (text or "").lower()
         learning_markers = (
-            "học",
-            "hoc",
-            "từ vựng",
-            "tu vung",
             "hội thoại",
             "hoi thoai",
-            "chủ đề",
-            "chu de",
             "luyện",
             "luyen",
+            "giao tiếp",
+            "giao tiep",
         )
         return any(marker in lowered for marker in learning_markers)
 
@@ -604,6 +768,14 @@ class ConversationPipeline:
     @staticmethod
     def _context_next_index(learning_context: dict[str, str | None]) -> int:
         raw = str(learning_context.get("next_index") or "0").strip()
+        try:
+            return max(0, int(raw))
+        except Exception:
+            return 0
+
+    @staticmethod
+    def _context_attempt_count(learning_context: dict[str, str | None]) -> int:
+        raw = str(learning_context.get("attempt_count") or "0").strip()
         try:
             return max(0, int(raw))
         except Exception:

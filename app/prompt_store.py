@@ -46,9 +46,9 @@ INTENT_PROMPT = (
     "- set_volume: điều chỉnh âm lượng\n"
     "- set_brightness: điều chỉnh độ sáng\n"
     "- reboot: khởi động lại thiết bị\n"
-    "- learning_vocab: người dùng muốn học từ vựng theo chủ đề\n"
+    "- flashcard_vocab: người dùng muốn luyện từ vựng bằng flash card vật lí\n"
     "- learning_conversation: người dùng muốn luyện hội thoại theo chủ đề\n"
-    "- learning_topic: người dùng chọn 1 chủ đề cụ thể để học\n"
+    "- learning_topic: người dùng chọn 1 chủ đề cụ thể để luyện hội thoại\n"
     "- assignment: người dùng muốn làm bài tập được giao\n"
     "- other: các yêu cầu khác\n"
     "\n"
@@ -61,9 +61,10 @@ INTENT_PROMPT = (
     "- intent=set_volume khi user muốn tăng/giảm/đặt âm lượng, cần volume (0-100).\n"
     "- intent=set_brightness khi user muốn tăng/giảm/đặt độ sáng, cần brightness (0-100).\n"
     "- intent=reboot khi user muốn khởi động lại thiết bị.\n"
-    "- intent=learning_vocab khi user nói muốn học từ vựng. Có thể kèm topic_id nếu nói rõ chủ đề.\n"
+    "- intent=flashcard_vocab khi user nói muốn học/luyện/ôn từ vựng hoặc flash card.\n"
     "- intent=learning_conversation khi user nói muốn luyện hội thoại. Có thể kèm topic_id nếu nói rõ chủ đề.\n"
-    "- intent=learning_topic khi user chọn chủ đề. Trả thêm learning_mode (vocabulary|conversation) và topic_id.\n"
+    "- intent=learning_topic khi user chọn chủ đề luyện hội thoại. Trả thêm learning_mode=conversation và topic_id.\n"
+    "- Không phân loại học từ vựng theo chủ đề cũ; các yêu cầu học từ vựng trả intent=flashcard_vocab.\n"
     "- intent=assignment khi user muốn làm bài tập được giao bởi phụ huynh.\n"
     "- intent=other cho mọi yêu cầu không thuộc các intent trên.\n"
     "\n"
@@ -79,7 +80,7 @@ INTENT_PROMPT = (
     "User: 'khởi động lại robot'\n"
     "Output: {\"intent\":\"reboot\"}\n"
     "User: 'tôi muốn học từ vựng chủ đề du lịch'\n"
-    "Output: {\"intent\":\"learning_vocab\",\"topic_id\":\"travel\"}\n"
+    "Output: {\"intent\":\"flashcard_vocab\"}\n"
     "User: 'hãy cùng luyện hội thoại chủ đề sân bay'\n"
     "Output: {\"intent\":\"learning_conversation\",\"topic_id\":\"airport\"}\n"
     "User: 'chọn chủ đề phỏng vấn để học hội thoại'\n"
@@ -94,23 +95,24 @@ INTENT_PROMPT = (
 LEARNING_INTENT_PROMPT = """Bạn là bộ nhận diện intent học tập cho trợ lý giọng nói tiếng Việt.
 
 Mục tiêu:
-- Tập trung vào intent học từ vựng/hội thoại theo chủ đề.
+- Tập trung vào intent luyện hội thoại theo chủ đề.
+- Không kích hoạt học từ vựng theo chủ đề bằng intent giọng nói.
 - Chịu lỗi STT sai chính tả/gần âm (ví dụ: "tự vận" -> "từ vựng", "công nghiệp" -> gần "công nghệ").
 
 Chỉ trả về DUY NHẤT 1 JSON object, không markdown, không giải thích.
 
 Schema bắt buộc:
 {
-    "intent": "learning_vocab|learning_conversation|learning_topic|other",
-    "learning_mode": "vocabulary|conversation|",
+    "intent": "learning_conversation|learning_topic|other",
+    "learning_mode": "conversation|",
     "topic_id": "travel|work|food|health|technology|education|family|greet|airport|hotel|restaurant|interview|shopping|",
     "topic_name": ""
 }
 
 Luật:
-1) Nếu user muốn học từ vựng/chủ đề từ mới -> intent=learning_vocab, learning_mode=vocabulary.
+1) Nếu user muốn học từ vựng/chủ đề từ mới -> intent=other.
 2) Nếu user muốn luyện hội thoại -> intent=learning_conversation, learning_mode=conversation.
-3) Nếu user nói/chọn 1 chủ đề cụ thể (ví dụ "chủ đề du lịch", "chủ đề công nghiệp") -> intent=learning_topic.
+3) Nếu user nói/chọn 1 chủ đề cụ thể để luyện hội thoại -> intent=learning_topic, learning_mode=conversation.
 4) Nếu không chắc là learning intent -> intent=other, để các field còn lại rỗng.
 
 Map topic_id:
@@ -130,10 +132,10 @@ Map topic_id:
 
 Ví dụ:
 User: "tôi muốn học tự vận về chủ đề công nghiệp"
-Output: {"intent":"learning_vocab","learning_mode":"vocabulary","topic_id":"technology","topic_name":"công nghệ"}
+Output: {"intent":"other","learning_mode":"","topic_id":"","topic_name":""}
 
 User: "chủ đề du lịch"
-Output: {"intent":"learning_topic","learning_mode":"vocabulary","topic_id":"travel","topic_name":"du lịch"}
+Output: {"intent":"other","learning_mode":"","topic_id":"","topic_name":""}
 
 User: "luyện hội thoại sân bay"
 Output: {"intent":"learning_conversation","learning_mode":"conversation","topic_id":"airport","topic_name":"sân bay"}
@@ -149,5 +151,3 @@ NORMALIZE_SONG_PROMPT = (
     "Input: 'phát nhạc sơn tung mtp' → {\"song_name\":\"Sơn Tùng M-TP\"}\n"
     "Input: 'mở bài nhạc tiếng việt' → {\"song_name\":\"nhạc việt\"}\n"
 )
-
-
