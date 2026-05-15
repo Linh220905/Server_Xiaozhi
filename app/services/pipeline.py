@@ -609,6 +609,7 @@ class ConversationPipeline:
                         "word": matched_card.get("word"),
                         "meaning": matched_card.get("meaning_vi"),
                         "image_url": "/static/asset/award_320.png",
+                        "duration_ms": 2000,
                     }
                 )
             if matched_word not in seen_words:
@@ -635,7 +636,9 @@ class ConversationPipeline:
             unknown_meaning_vi = str(evaluation.get("unknown_meaning_vi") or "").strip()
             if unknown_word:
                 learning_context["attempt_count"] = "0"
-                if unknown_meaning_vi:
+                if feedback:
+                    reply_text = feedback
+                elif unknown_meaning_vi:
                     reply_text = (
                         f"Từ {unknown_word} nghĩa là {unknown_meaning_vi}. "
                         f"{build_next_card_prompt()}"

@@ -663,6 +663,7 @@ async def _run_pipeline(ws: WebSocket, session: Session) -> None:
                 "meaning": payload.get("meaning"),
                 "image_url": image_url,
                 "kind": payload.get("kind"),
+                "duration_ms": payload.get("duration_ms"),
             }
         )
 
